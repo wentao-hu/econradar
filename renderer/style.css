@@ -5,10 +5,10 @@
   --border: #e3e6eb;
   --text: #1f2329;
   --text-dim: #8a94a6;
-  --up: #16a34a;      /* 上涨 = 绿色 */
-  --up-bg: rgba(22, 163, 74, 0.10);
-  --down: #dc2626;    /* 下跌 = 红色 */
-  --down-bg: rgba(220, 38, 38, 0.10);
+  --up: #dc2626;      /* 上涨 = 红色（A股惯例） */
+  --up-bg: rgba(220, 38, 38, 0.10);
+  --down: #16a34a;    /* 下跌 = 绿色（A股惯例） */
+  --down-bg: rgba(22, 163, 74, 0.10);
   --flat: #8a94a6;
   --accent: #2563eb;
 }
@@ -258,14 +258,134 @@ body {
 .card.loading .card-price,
 .card.loading .pill { animation: skeleton-pulse 1.4s ease-in-out infinite; }
 
+/* ---------- 资金流向页 ---------- */
+
+/* 页面大标题：点击跳转东方财富板块资金流向页核对数据 */
+.fundflow-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: color 0.15s;
+}
+.fundflow-title:hover { color: var(--accent); }
+
+/* 排行周期单选组（今日/5日/10日）：分段控件样式，选中项高亮 */
+.ff-range {
+  display: inline-flex;
+  gap: 4px;
+  align-self: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.ff-range-item {
+  font-size: 13px;
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.ff-range-item input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none; /* 原生圆点隐藏，靠 label 底色表达选中态 */
+}
+.ff-range-item:has(input:checked) {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ff-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ff-total {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ff-total.up { color: var(--up); }   /* 净流入 = 红色（A股惯例） */
+.ff-total.down { color: var(--down); } /* 净流出 = 绿色 */
+
+/* 榜单卡片容器：与行情卡片同一视觉语言 */
+.ff-chart {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(31, 35, 41, 0.06);
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ff-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ff-row:last-child { border-bottom: none; }
+
+.ff-name {
+  flex: none;
+  width: 128px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 柱条轨道：净流入红柱、净流出绿柱，均左锚从左向右生长，仅靠颜色与正负号区分方向 */
+.ff-track {
+  flex: 1;
+  min-width: 0;
+  height: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.ff-bar { height: 100%; border-radius: 3px; min-width: 2px; }
+.ff-track.in .ff-bar { background: var(--up); }
+.ff-track.out .ff-bar { background: var(--down); }
+
+.ff-value {
+  flex: none;
+  width: 84px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ff-value.up { color: var(--up); }
+.ff-value.down { color: var(--down); }
+
+.ff-empty {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
 .error-banner {
   position: fixed;
   left: 50%;
   bottom: 18px;
   transform: translateX(-50%);
   background: rgba(220, 38, 38, 0.08);
-  border: 1px solid var(--down);
-  color: var(--down);
+  border: 1px solid #dc2626;   /* 错误提示固定用红色，与涨跌配色无关 */
+  color: #dc2626;
   font-size: 12px;
   padding: 8px 16px;
   border-radius: 8px;

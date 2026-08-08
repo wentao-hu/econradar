@@ -20,6 +20,7 @@ const tabButtons = Array.from(document.querySelectorAll('.side-tab'));
 const pages = {
   market: document.getElementById('page-market'),
   industry: document.getElementById('page-industry'),
+  fundflow: document.getElementById('page-fundflow'),
 };
 
 function switchPage(page) {
@@ -144,6 +145,8 @@ function saveOrder(grid) {
   try {
     const codes = Array.from(grid.querySelectorAll('.card')).map((c) => c.dataset.code);
     localStorage.setItem(orderKey(grid), JSON.stringify(codes));
+    // 顺序是关键用户设置：立刻落盘，避免异常退出时丢失本次拖拽结果
+    window.econ.flushStorage?.();
   } catch (_) { /* 忽略持久化失败 */ }
 }
 
@@ -349,37 +352,216 @@ function renderItems(items) {
   }
 }
 
+/* ---------- 资金流向缓存：与行情一样先显后刷，按排行周期分别缓存 ---------- */
+
+function ffCacheKey(range) {
+  return `econradar-last-fundflow:${range}`;
+}
+
+/** 读取指定周期的上次成功数据；结构不合法时视为无缓存 */
+function loadFundFlowCache(range) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(ffCacheKey(range)) || 'null');
+    if (
+      cached &&
+      cached.data &&
+      Array.isArray(cached.data.inflow) &&
+      Array.isArray(cached.data.outflow) &&
+      typeof cached.fetchedAt === 'string'
+    ) {
+      return cached;
+    }
+  } catch (_) { /* 缓存损坏时按无缓存处理 */ }
+  return null;
+}
+
+function saveFundFlowCache(range, data, fetchedAt) {
+  try {
+    localStorage.setItem(ffCacheKey(range), JSON.stringify({ fetchedAt, data }));
+  } catch (_) { /* 存储失败不影响主流程 */ }
+}
+
+/* ---------- 资金流向页：行业板块主力净流入/净流出柱状图 ---------- */
+
+/** 排行周期 -> 合计文案前缀（今日/5日/10日） */
+const FF_RANGE_LABELS = { today: '今日', '5d': '5日', '10d': '10日' };
+
+/** 当前选中的排行周期，默认今日 */
+let ffRange = 'today';
+
+/** 元 -> 带正负号的亿元文本：+267.0亿 / -66.9亿 */
+function fmtYi(v) {
+  const sign = v > 0 ? '+' : v < 0 ? '-' : '';
+  return `${sign}${(Math.abs(v) / 1e8).toFixed(1)}亿`;
+}
+
+/** 渲染一个资金流向榜单；dir='in' 红柱（净流入），dir='out' 绿柱（净流出），均从左向右生长 */
+function renderFfChart(container, boards, dir) {
+  container.innerHTML = '';
+  if (!boards.length) {
+    const empty = document.createElement('div');
+    empty.className = 'ff-empty';
+    empty.textContent = '暂无数据';
+    container.appendChild(empty);
+    return;
+  }
+  const maxAbs = Math.max(...boards.map((b) => Math.abs(b.amount)), 1);
+  for (const b of boards) {
+    const row = document.createElement('div');
+    row.className = 'ff-row';
+
+    const name = document.createElement('span');
+    name.className = 'ff-name';
+    name.textContent = b.name;
+    name.title = b.name;
+
+    const track = document.createElement('div');
+    track.className = `ff-track ${dir}`;
+    const bar = document.createElement('div');
+    bar.className = 'ff-bar';
+    bar.style.width = `${(Math.abs(b.amount) / maxAbs) * 100}%`;
+    track.appendChild(bar);
+
+    const value = document.createElement('span');
+    value.className = `ff-value ${dir === 'in' ? 'up' : 'down'}`;
+    value.textContent = fmtYi(b.amount);
+
+    row.appendChild(name);
+    row.appendChild(track);
+    row.appendChild(value);
+    container.appendChild(row);
+  }
+}
+
+function renderFundFlow(data, range) {
+  const label = FF_RANGE_LABELS[range] || FF_RANGE_LABELS.today;
+  renderFfChart(document.getElementById('ff-inflow'), data.inflow, 'in');
+  renderFfChart(document.getElementById('ff-outflow'), data.outflow, 'out');
+  document.getElementById('ff-inflow-total').textContent =
+    `${label}主力净流入合计：${fmtYi(data.inflowTotal)}（TOP10 板块）`;
+  document.getElementById('ff-outflow-total').textContent =
+    `${label}主力净流出合计：${fmtYi(data.outflowTotal)}（TOP10 板块）`;
+}
+
+/** 切换排行周期：先置加载态，拉取对应口径数据后渲染；期间再次切换则丢弃过期结果 */
+async function loadFundFlowRange(range) {
+  for (const id of ['ff-inflow', 'ff-outflow']) {
+    document.getElementById(id).innerHTML = '<div class="ff-empty">加载中…</div>';
+  }
+  const res = await window.econ.getFundFlow(range).catch(() => null);
+  if (range !== ffRange) return; // 用户已切到其他周期，丢弃本次结果
+  if (res && res.ok) {
+    renderFundFlow(res.data, range);
+    saveFundFlowCache(range, res.data, res.fetchedAt);
+  } else {
+    showFundFlowError();
+  }
+}
+
+// 排行周期单选：切换后立即按新口径拉取渲染
+document.querySelectorAll('input[name="ff-range"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (!radio.checked) return;
+    ffRange = radio.value;
+    loadFundFlowRange(ffRange);
+  });
+});
+
+function showFundFlowError() {
+  for (const id of ['ff-inflow', 'ff-outflow']) {
+    const container = document.getElementById(id);
+    container.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'ff-empty';
+    empty.textContent = '数据获取失败，可点击右上角“刷新”重试';
+    container.appendChild(empty);
+  }
+}
+
+// 页面标题 -> 默认浏览器打开东方财富板块资金流向页核对数据
+document
+  .getElementById('fundflow-title')
+  .addEventListener('click', () =>
+    window.econ.openExternal('https://data.eastmoney.com/bkzj/hy.html')
+  );
+
 let refreshing = false;
 
-async function refresh() {
+/**
+ * 拉取全部数据并逐源渲染：哪个源先到就先更新哪组卡片，
+ * 不再等待最慢的源（PCE 走隐藏窗口 + 反爬重试，最坏可能耗时几十秒），
+ * 避免行情、东财宏观等快数据陪等；最终渲染结果与一次性等待完全一致。
+ * isManual=true（点击“刷新”）时绕过主进程预热结果缓存，强制重新抓取。
+ */
+async function refresh(isManual = false) {
   if (refreshing) return;
   refreshing = true;
   refreshBtn.disabled = true;
-  try {
-    // 行情、宏观与行业数据并行拉取；宏观/行业整体失败时降级为仅展示行情
-    const [res, macroRes, industryRes] = await Promise.all([
-      window.econ.getIndices(),
-      window.econ.getUsMacro().catch(() => null),
-      window.econ.getIndustries().catch(() => null),
-    ]);
-    if (!res.ok) throw new Error(res.error || '未知错误');
-    let data = res.data;
-    if (macroRes && macroRes.ok) data = [...data, ...macroRes.data];
-    if (industryRes && industryRes.ok) data = [...data, ...industryRes.data];
-    renderItems(data);
-    saveCache(data, res.fetchedAt);
-    cacheShown = false;
-    updateTimeEl.textContent = `更新于 ${fmtClock(res.fetchedAt)}`;
-    errorBanner.classList.add('hidden');
-  } catch (err) {
-    errorBanner.textContent = `数据获取失败：${err.message || err}（可点击“刷新”重试）`;
+
+  // 本轮已到达的数据逐源累积，任一源到达即落缓存，下次启动才能完整先显
+  const freshData = [];
+  let indicesFetchedAt = null; // 行情时间戳：缓存与顶部“更新于”共用
+  let indicesError = null;
+  const ffRangeAtFetch = ffRange; // 记录发起时的排行周期，渲染时若已切换则丢弃资金流向结果
+
+  const persistCache = () => {
+    if (indicesFetchedAt && freshData.length) saveCache(freshData, indicesFetchedAt);
+  };
+
+  // 宏观/PCE/行业共用：到达即渲染对应卡片并落缓存；整体失败时保持现状（缓存或骨架）
+  const renderChunk = (res) => {
+    if (!res || !res.ok) return;
+    freshData.push(...res.data);
+    renderItems(res.data);
+    persistCache();
+  };
+
+  const jobs = [
+    // 行情是主数据：成功时更新顶部时间并清错误条；失败时出错误条
+    window.econ.getIndices(isManual)
+      .then((res) => {
+        if (!res || !res.ok) throw new Error((res && res.error) || '未知错误');
+        indicesFetchedAt = res.fetchedAt;
+        freshData.push(...res.data);
+        renderItems(res.data);
+        cacheShown = false;
+        updateTimeEl.textContent = `更新于 ${fmtClock(res.fetchedAt)}`;
+        errorBanner.classList.add('hidden');
+        persistCache();
+      })
+      .catch((err) => {
+        indicesError = err;
+      }),
+    window.econ.getUsMacro(isManual).then(renderChunk).catch(() => {}),
+    window.econ.getUsPce(isManual).then(renderChunk).catch(() => {}),
+    window.econ.getIndustries(isManual).then(renderChunk).catch(() => {}),
+    // 资金流向独立成败，不拖垮行情看板；周期已切换时由切换回调自行渲染
+    window.econ.getFundFlow(ffRangeAtFetch, isManual)
+      .then((res) => {
+        if (ffRangeAtFetch !== ffRange) return;
+        if (res && res.ok) {
+          renderFundFlow(res.data, ffRangeAtFetch);
+          saveFundFlowCache(ffRangeAtFetch, res.data, res.fetchedAt);
+        } else {
+          showFundFlowError();
+        }
+      })
+      .catch(() => {
+        if (ffRangeAtFetch === ffRange) showFundFlowError();
+      }),
+  ];
+
+  await Promise.allSettled(jobs);
+
+  if (indicesError) {
+    errorBanner.textContent = `数据获取失败：${indicesError.message || indicesError}（可点击“刷新”重试）`;
     errorBanner.classList.remove('hidden');
     // 已展示缓存时保留缓存时间戳，避免把“更新于”覆盖成无信息量的失败文案
     if (!cacheShown) updateTimeEl.textContent = '更新失败';
-  } finally {
-    refreshing = false;
-    refreshBtn.disabled = false;
   }
+
+  refreshing = false;
+  refreshBtn.disabled = false;
 }
 
 /* ---------- 启动：骨架卡片 -> 缓存先显 -> 后台刷新 ---------- */
@@ -398,8 +580,11 @@ async function bootstrap() {
     cacheShown = true;
     updateTimeEl.textContent = `缓存数据 · ${fmtClock(cached.fetchedAt)}`;
   }
+  // 资金流向同样先展示上次缓存（启动时固定为今日口径），新数据到达后自动替换
+  const ffCached = loadFundFlowCache(ffRange);
+  if (ffCached) renderFundFlow(ffCached.data, ffRange);
 
-  // 3) 后台拉取最新数据，到达后逐卡更新
+  // 3) 后台拉取最新数据，各源到达即更新对应卡片
   refresh();
 }
 
@@ -418,5 +603,6 @@ boardEl.addEventListener(
 );
 
 for (const grid of Object.values(grids)) setupGridDnd(grid);
-refreshBtn.addEventListener('click', refresh);
+// 手动刷新传 isManual=true：绕过主进程预热结果缓存，始终拉最新数据
+refreshBtn.addEventListener('click', () => refresh(true));
 bootstrap();

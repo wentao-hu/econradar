@@ -23,12 +23,21 @@
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
     </button>
+    <button class="side-tab" data-page="fundflow" role="tab" aria-selected="false" title="资金流向">
+      <svg class="side-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 8h13" />
+        <polyline points="13 4 17 8 13 12" />
+        <path d="M20 16H7" />
+        <polyline points="11 12 7 16 11 20" />
+      </svg>
+    </button>
   </aside>
 
   <div class="main-area">
     <header class="app-header">
       <div class="header-right">
         <span id="update-time" class="update-time">加载中…</span>
+        <span class="update-time">· 时间均为北京时间</span>
         <button id="refresh-btn" class="refresh-btn" title="立即刷新">刷新</button>
       </div>
     </header>
@@ -60,6 +69,30 @@
       <section>
         <h2 class="section-title">美国行业</h2>
         <div id="grid-us-industry" class="grid grid-us-industry"></div>
+      </section>
+    </main>
+    <main class="board page-hidden" id="page-fundflow">
+      <!-- 页面标题点击跳转东方财富板块资金流向页，供手动核对数据 -->
+      <h1 class="fundflow-title" id="fundflow-title" title="在浏览器中打开东方财富板块资金流向页核对数据">资金流向</h1>
+      <!-- 排行周期切换：今日 / 5 日 / 10 日，默认今日 -->
+      <div class="ff-range" role="radiogroup" aria-label="排行周期">
+        <label class="ff-range-item"><input type="radio" name="ff-range" value="today" checked>今日排行</label>
+        <label class="ff-range-item"><input type="radio" name="ff-range" value="5d">5日排行</label>
+        <label class="ff-range-item"><input type="radio" name="ff-range" value="10d">10日排行</label>
+      </div>
+      <section>
+        <div class="ff-section-head">
+          <h2 class="section-title">主力净流入 TOP10 · 行业板块</h2>
+          <span class="ff-total up" id="ff-inflow-total">今日主力净流入合计：--</span>
+        </div>
+        <div id="ff-inflow" class="ff-chart"><div class="ff-empty">加载中…</div></div>
+      </section>
+      <section>
+        <div class="ff-section-head">
+          <h2 class="section-title">主力净流出 TOP10 · 行业板块</h2>
+          <span class="ff-total down" id="ff-outflow-total">今日主力净流出合计：--</span>
+        </div>
+        <div id="ff-outflow" class="ff-chart"><div class="ff-empty">加载中…</div></div>
       </section>
     </main>
   </div>

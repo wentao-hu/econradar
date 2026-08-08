@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --mac"
+    "dist": "electron-builder --mac",
+    "dist:win": "electron-builder --win --x64 --arm64"
   },
   "build": {
     "appId": "com.steven.econradar",
@@ -31,6 +32,18 @@
         "dmg",
         "zip"
       ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName} Setup ${version}-${arch}.${ext}"
     },
     "dmg": {
       "title": "EconRadar"

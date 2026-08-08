@@ -8,47 +8,57 @@ try {
   // 不支持的版本直接忽略
 }
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fetchIndices, INDEX_META } = require('./lib/indices');
 const { fetchUsMacro, MACRO_META } = require('./lib/usmacro');
+const { fetchUsPce, PCE_META } = require('./lib/uspce');
 const { fetchIndustries, INDUSTRY_META } = require('./lib/industries');
+const { fetchFundFlow, RANGE_FIELDS } = require('./lib/fundflow');
 
-// 同一时刻只保留一个进行中的行情请求。
-// 应用启动后立即预热，窗口加载与网络请求并行，
-// 渲染进程首屏请求直接复用进行中的 Promise，避免串行等待。
-let inflightFetch = null;
-function fetchIndicesShared() {
-  if (!inflightFetch) {
-    inflightFetch = fetchIndices().finally(() => {
-      inflightFetch = null;
-    });
-  }
-  return inflightFetch;
+// 预热结果复用窗口：启动预热与渲染进程首刷通常只隔几百毫秒，
+// 若预热完成后渲染进程才来请求，inflight 已结束会重复抓取同一批数据；
+// TTL 内的请求直接复用最近一次结果，消除这轮重复请求。
+// 手动刷新（fresh=true）绕过 TTL 始终重新抓取，刷新语义不变。
+const RESULT_TTL_MS = 10 * 1000;
+
+// 同一数据口径（key）同一时刻只保留一个进行中的请求，渲染进程直接复用进行中的
+// Promise；成功结果按 TTL 短缓存，失败不缓存（下次请求重新抓取）。
+// fetchFn 接收 key 作为参数（无参源固定传 ''，被忽略；资金流向 key 为排行周期）。
+function makeSharedFetch(fetchFn) {
+  const inflight = new Map();
+  const last = new Map(); // key -> { at, data }
+  return function sharedFetch({ key = '', fresh = false } = {}) {
+    if (!fresh) {
+      const hit = last.get(key);
+      if (hit && Date.now() - hit.at < RESULT_TTL_MS) return Promise.resolve(hit.data);
+    }
+    if (!inflight.has(key)) {
+      const p = Promise.resolve()
+        .then(() => fetchFn(key))
+        .then((data) => {
+          last.set(key, { at: Date.now(), data });
+          return data;
+        })
+        .finally(() => {
+          inflight.delete(key);
+        });
+      inflight.set(key, p);
+    }
+    return inflight.get(key);
+  };
 }
 
-// 美国宏观数据同样共享进行中请求，并随启动预热
-let inflightMacroFetch = null;
-function fetchUsMacroShared() {
-  if (!inflightMacroFetch) {
-    inflightMacroFetch = fetchUsMacro().finally(() => {
-      inflightMacroFetch = null;
-    });
-  }
-  return inflightMacroFetch;
-}
-
-// 行业指数数据共享进行中请求，并随启动预热
-let inflightIndustryFetch = null;
-function fetchIndustriesShared() {
-  if (!inflightIndustryFetch) {
-    inflightIndustryFetch = fetchIndustries().finally(() => {
-      inflightIndustryFetch = null;
-    });
-  }
-  return inflightIndustryFetch;
-}
+// 各数据源均随启动预热，与窗口加载并行。
+// 东财宏观与 investing 的 PCE 拆成两个独立通道：
+// PCE 走隐藏窗口 + 反爬重试，最坏可能耗时几十秒，
+// 合并在一个通道里会让东财宏观的快数据陪等，拖慢首屏数据更新。
+const fetchIndicesShared = makeSharedFetch(fetchIndices);
+const fetchUsMacroShared = makeSharedFetch(fetchUsMacro);
+const fetchUsPceShared = makeSharedFetch(fetchUsPce);
+const fetchIndustriesShared = makeSharedFetch(fetchIndustries);
+const fetchFundFlowShared = makeSharedFetch(fetchFundFlow);
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -59,12 +69,16 @@ function createWindow() {
     title: 'EconRadar',
     show: false, // 等首帧渲染完成后再显示，避免白屏闪烁、感知打开更快
     backgroundColor: '#f5f6f8',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 18 },
+    // 隐藏式标题栏是 macOS 专属体验（配红绿灯位置）；Windows 上没有红绿灯，
+    // 用同样式会丢掉最小化/关闭按钮，因此 Windows 走原生标题栏。
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 18 } }
+      : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false, // 纯数据展示界面没有输入场景，关掉省去拼写检查词典的内存开销
     },
   });
 
@@ -79,30 +93,32 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
+// 统一注册数据拉取通道：fresh=true（手动刷新）绕过预热结果缓存，强制重新抓取
+function handleFetch(channel, sharedFetch) {
+  ipcMain.handle(channel, async (_event, fresh) => {
+    try {
+      const data = await sharedFetch({ fresh: !!fresh });
+      return { ok: true, data, fetchedAt: new Date().toISOString() };
+    } catch (err) {
+      return { ok: false, error: String((err && err.message) || err) };
+    }
+  });
+}
+
 // 渲染进程请求最新指数数据
-ipcMain.handle('indices:fetch', async () => {
-  try {
-    const data = await fetchIndicesShared();
-    return { ok: true, data, fetchedAt: new Date().toISOString() };
-  } catch (err) {
-    return { ok: false, error: String((err && err.message) || err) };
-  }
-});
-
-// 渲染进程请求美国宏观数据
-ipcMain.handle('usmacro:fetch', async () => {
-  try {
-    const data = await fetchUsMacroShared();
-    return { ok: true, data, fetchedAt: new Date().toISOString() };
-  } catch (err) {
-    return { ok: false, error: String((err && err.message) || err) };
-  }
-});
-
+handleFetch('indices:fetch', fetchIndicesShared);
+// 渲染进程请求美国宏观数据（东财口径，不含 PCE）
+handleFetch('usmacro:fetch', fetchUsMacroShared);
+// 渲染进程请求美国 PCE 数据（investing，独立通道避免拖慢东财宏观）
+handleFetch('uspce:fetch', fetchUsPceShared);
 // 渲染进程请求行业指数数据
-ipcMain.handle('industries:fetch', async () => {
+handleFetch('industries:fetch', fetchIndustriesShared);
+
+// 渲染进程请求板块资金流向数据（行业板块主力净流入/净流出 TOP10，range: today/5d/10d）
+ipcMain.handle('fundflow:fetch', async (_event, range, fresh) => {
   try {
-    const data = await fetchIndustriesShared();
+    const key = RANGE_FIELDS[range] ? range : 'today';
+    const data = await fetchFundFlowShared({ key, fresh: !!fresh });
     return { ok: true, data, fetchedAt: new Date().toISOString() };
   } catch (err) {
     return { ok: false, error: String((err && err.message) || err) };
@@ -110,7 +126,13 @@ ipcMain.handle('industries:fetch', async () => {
 });
 
 // 渲染进程请求指标静态元数据（分组/名称/链接），用于首屏立即渲染骨架卡片
-ipcMain.handle('indices:meta', () => [...INDEX_META, ...MACRO_META, ...INDUSTRY_META]);
+ipcMain.handle('indices:meta', () => [...INDEX_META, ...MACRO_META, ...PCE_META, ...INDUSTRY_META]);
+
+// 渲染进程保存关键设置（如拖拽排序）后，立刻把 localStorage 挂起写入落盘。
+// Chromium 的 DOM Storage 按秒级批量提交，异常退出（崩溃/强杀/断电）会丢掉未提交的写入。
+ipcMain.on('storage:flush', () => {
+  session.defaultSession.flushStorageData();
+});
 
 // 点击指数标题 -> 默认浏览器打开详情页
 ipcMain.handle('open-external', (event, url) => {
@@ -129,10 +151,12 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  // 启动即预热行情、宏观与行业数据，与窗口加载并行；失败不影响渲染进程后续自行重试
+  // 启动即预热行情、宏观、PCE、行业与资金流向数据，与窗口加载并行；失败不影响渲染进程后续自行重试
   fetchIndicesShared().catch(() => {});
   fetchUsMacroShared().catch(() => {});
+  fetchUsPceShared().catch(() => {});
   fetchIndustriesShared().catch(() => {});
+  fetchFundFlowShared({ key: 'today' }).catch(() => {});
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -141,4 +165,19 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+// 退出前强制把 localStorage 挂起的写入落盘。
+// Chromium 的 DOM Storage 按秒级批量提交，拖拽排序后立刻退出会丢掉未提交的写入
+// （"拖完顺序、重开后顺序复原"正是该场景），flushStorageData 是官方对应的落盘手段。
+let storageFlushed = false;
+app.on('before-quit', (event) => {
+  if (storageFlushed) return;
+  event.preventDefault();
+  storageFlushed = true;
+  Promise.race([
+    session.defaultSession.flushStorageData(),
+    // 兜底：flush 异常卡住时也要保证能正常退出
+    new Promise((resolve) => setTimeout(resolve, 800)),
+  ]).finally(() => app.quit());
 });
