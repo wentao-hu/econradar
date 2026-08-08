@@ -1,7 +1,7 @@
 {
-  "name": "econrader",
+  "name": "econradar",
   "version": "1.0.0",
-  "description": "EconRader - 国内外主要指数与宏观经济指标雷达",
+  "description": "EconRadar - 国内外主要指数与宏观经济指标雷达",
   "main": "main.js",
   "license": "MIT",
   "scripts": {
@@ -10,8 +10,8 @@
     "dist": "electron-builder --mac"
   },
   "build": {
-    "appId": "com.steven.econrader",
-    "productName": "EconRader",
+    "appId": "com.steven.econradar",
+    "productName": "EconRadar",
     "directories": {
       "buildResources": "build",
       "output": "dist"
@@ -33,7 +33,7 @@
       ]
     },
     "dmg": {
-      "title": "EconRader"
+      "title": "EconRadar"
     }
   },
   "devDependencies": {

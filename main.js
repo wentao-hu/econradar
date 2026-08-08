@@ -56,7 +56,7 @@ function createWindow() {
     height: 720,
     minWidth: 980,
     minHeight: 620,
-    title: 'EconRader',
+    title: 'EconRadar',
     show: false, // 等首帧渲染完成后再显示，避免白屏闪烁、感知打开更快
     backgroundColor: '#f5f6f8',
     titleBarStyle: 'hiddenInset',

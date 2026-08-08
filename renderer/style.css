@@ -51,7 +51,6 @@ body {
   justify-content: center; /* 图标整体垂直居中，而非靠顶 */
   gap: 22px;
   padding-top: 46px; /* 顶部留出红绿灯空间，居中时视觉上更平衡 */
-  border-right: 1px solid var(--border);
   background: var(--bg);
   -webkit-app-region: drag;
 }
@@ -221,13 +220,18 @@ body {
   font-size: 18px; /* 涨跌幅与卡片标题字号接近 */
   font-weight: 700;
   line-height: 1.15;
+  white-space: nowrap; /* 涨跌幅不换行；溢出卡行宽度时由 fitPill 逐级缩小字号 */
 }
+/* pill 默认 18px；卡行内容总宽溢出时 18px -> 16px -> 14px -> 12px 逐级缩小 */
+.pill.pill-md { font-size: 16px; }
+.pill.pill-sm { font-size: 14px; }
+.pill.pill-xs { font-size: 12px; }
 .pill.up { color: var(--up); background: var(--up-bg); }
 .pill.down { color: var(--down); background: var(--down-bg); }
 .pill.flat { color: var(--flat); background: rgba(139, 148, 158, 0.12); }
 
 /* 涨跌点数：涨跌幅的配角，字号明显更小 */
-.change-amt { font-size: 13px; font-weight: 600; align-self: center; }
+.change-amt { font-size: 13px; font-weight: 600; align-self: center; white-space: nowrap; }
 .change-amt.up { color: var(--up); }
 .change-amt.down { color: var(--down); }
 .change-amt.flat { color: var(--flat); }

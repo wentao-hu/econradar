@@ -1,6 +1,6 @@
 'use strict';
 
-/* EconRader 渲染进程：指数/大宗商品看板 */
+/* EconRadar 渲染进程：指数/大宗商品看板 */
 /* 约定：上涨绿色、下跌红色，数字前始终带 + / - 号 */
 /* 刷新策略：启动时自动拉取一次，之后仅在用户点击“刷新”时更新 */
 /* 卡片顺序：同一栏目内可拖拽排序（左右/上下），顺序持久化到 localStorage；禁止跨栏目拖动 */
@@ -33,8 +33,9 @@ function switchPage(page) {
   }
   // 刚切到可见的页面此前无法测量标题宽度，需要补一次字号适配
   refitAllTitles();
+  refitAllPills();
   try {
-    localStorage.setItem('econrader-active-page', page);
+    localStorage.setItem('econradar-active-page', page);
   } catch (_) { /* 忽略持久化失败 */ }
 }
 
@@ -44,7 +45,7 @@ for (const btn of tabButtons) {
 
 // 恢复上次停留的页面（默认市场概览）
 try {
-  const savedPage = localStorage.getItem('econrader-active-page');
+  const savedPage = localStorage.getItem('econradar-active-page');
   if (savedPage && pages[savedPage]) switchPage(savedPage);
 } catch (_) { /* 默认停留在市场概览 */ }
 const updateTimeEl = document.getElementById('update-time');
@@ -89,6 +90,24 @@ function refitAllTitles() {
   document.querySelectorAll('.card-title').forEach(fitTitle);
 }
 
+/** 实测卡行内容（涨跌幅 pill + 配角）是否溢出卡行宽度：不换行，pill 18px -> 16px -> 14px -> 12px 逐级缩小 */
+function fitPill(rowEl) {
+  const pill = rowEl.querySelector('.pill');
+  pill.classList.remove('pill-md', 'pill-sm', 'pill-xs');
+  // 未上屏或所在页面隐藏时无法测量，保持基础字号，待可见后由 refitAllPills 适配
+  if (!rowEl.isConnected || rowEl.clientWidth === 0) return;
+  if (rowEl.scrollWidth <= rowEl.clientWidth + 1) return;
+  pill.classList.add('pill-md');
+  if (rowEl.scrollWidth <= rowEl.clientWidth + 1) return;
+  pill.classList.replace('pill-md', 'pill-sm');
+  if (rowEl.scrollWidth <= rowEl.clientWidth + 1) return;
+  pill.classList.replace('pill-sm', 'pill-xs');
+}
+
+function refitAllPills() {
+  document.querySelectorAll('.card-row').forEach(fitPill);
+}
+
 /* 窗口尺寸变化会改变卡片宽度，需要重新测量标题是否溢出（rAF 节流避免连发 reflow） */
 let refitRaf = 0;
 window.addEventListener('resize', () => {
@@ -96,6 +115,7 @@ window.addEventListener('resize', () => {
   refitRaf = requestAnimationFrame(() => {
     refitRaf = 0;
     refitAllTitles();
+    refitAllPills();
   });
 });
 
@@ -117,7 +137,7 @@ function insertBeforeTarget(e, rect) {
 }
 
 function orderKey(grid) {
-  return `econrader-card-order:${grid.id}`;
+  return `econradar-card-order:${grid.id}`;
 }
 
 function saveOrder(grid) {
@@ -241,6 +261,7 @@ function updateCard(card, item) {
     pillEl.textContent = '暂无数据';
     amtEl.textContent = '';
     timeEl.textContent = '';
+    fitPill(card.querySelector('.card-row'));
     return;
   }
 
@@ -256,6 +277,7 @@ function updateCard(card, item) {
       item.prev != null ? `前值 ${item.prev.toFixed(item.digits)}${item.unit}` : '';
     priceEl.textContent = `${item.value.toFixed(item.digits)}${item.unit}`;
     timeEl.textContent = item.time || '';
+    fitPill(card.querySelector('.card-row'));
     return;
   }
 
@@ -268,6 +290,7 @@ function updateCard(card, item) {
     item.change != null ? fmtSigned(item.change, '', Math.abs(item.change) >= 10 ? 2 : 3) : '';
   priceEl.textContent = fmtPrice(item.price);
   timeEl.textContent = item.time || '';
+  fitPill(card.querySelector('.card-row'));
 }
 
 const cardMap = new Map();
@@ -282,11 +305,12 @@ function ensureCards(items) {
   for (const grid of Object.values(grids)) applySavedOrder(grid);
   // 新建卡片在上屏后补一次实测字号适配（创建时元素未上屏无法测量）
   refitAllTitles();
+  refitAllPills();
 }
 
 /* ---------- 本地缓存：先显后刷（stale-while-revalidate） ---------- */
 
-const CACHE_KEY = 'econrader-last-data';
+const CACHE_KEY = 'econradar-last-data';
 let cacheShown = false; // 首屏是否已展示缓存数据（刷新失败时保留其时间戳）
 
 function fmtClock(iso) {
