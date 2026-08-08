@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>EconRader</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <button class="side-tab active" data-page="market" role="tab" aria-selected="true" title="市场概览">
+      <svg class="side-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="3 17 9 11 13 15 21 7" />
+        <polyline points="15 7 21 7 21 13" />
+      </svg>
+    </button>
+    <button class="side-tab" data-page="industry" role="tab" aria-selected="false" title="行业概览">
+      <svg class="side-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    </button>
+  </aside>
+
+  <div class="main-area">
+    <header class="app-header">
+      <div class="header-right">
+        <span id="update-time" class="update-time">加载中…</span>
+        <button id="refresh-btn" class="refresh-btn" title="立即刷新">刷新</button>
+      </div>
+    </header>
+
+    <main class="board" id="page-market">
+      <section>
+        <h2 class="section-title">国内指数</h2>
+        <div id="grid-cn" class="grid grid-cn"></div>
+      </section>
+      <section>
+        <h2 class="section-title">全球指数</h2>
+        <div id="grid-global" class="grid grid-global"></div>
+      </section>
+      <section>
+        <h2 class="section-title">美国宏观经济</h2>
+        <div id="grid-usmacro" class="grid grid-usmacro"></div>
+      </section>
+      <section>
+        <h2 class="section-title">大宗商品</h2>
+        <div id="grid-commodity" class="grid grid-commodity"></div>
+      </section>
+    </main>
+
+    <main class="board page-hidden" id="page-industry">
+      <section>
+        <h2 class="section-title">中国行业</h2>
+        <div id="grid-cn-industry" class="grid grid-cn-industry"></div>
+      </section>
+      <section>
+        <h2 class="section-title">美国行业</h2>
+        <div id="grid-us-industry" class="grid grid-us-industry"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="error-banner" class="error-banner hidden"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

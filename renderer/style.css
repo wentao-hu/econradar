@@ -1,0 +1,269 @@
+:root {
+  --bg: #f5f6f8;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f2f5;
+  --border: #e3e6eb;
+  --text: #1f2329;
+  --text-dim: #8a94a6;
+  --up: #16a34a;      /* 上涨 = 绿色 */
+  --up-bg: rgba(22, 163, 74, 0.10);
+  --down: #dc2626;    /* 下跌 = 红色 */
+  --down-bg: rgba(220, 38, 38, 0.10);
+  --flat: #8a94a6;
+  --accent: #2563eb;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Helvetica Neue", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* body 横向布局：左侧侧边栏 + 右侧主区域 */
+body {
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none; /* header 不参与压缩，保持自然高度 */
+  padding: 14px 28px 8px 16px;
+  -webkit-app-region: drag;
+}
+
+/* 左侧侧边栏：纯图标页面切换，图标在侧边栏中垂直居中 */
+.sidebar {
+  flex: none;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* 图标整体垂直居中，而非靠顶 */
+  gap: 22px;
+  padding-top: 46px; /* 顶部留出红绿灯空间，居中时视觉上更平衡 */
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  -webkit-app-region: drag;
+}
+.side-tab {
+  -webkit-app-region: no-drag;
+  border: none;
+  padding: 4px;
+  border-radius: 0;
+  background: transparent; /* 无任何框/底色 */
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.side-tab:hover { color: var(--text); background: transparent; }
+.side-tab.active { color: var(--accent); background: transparent; } /* 选中仅靠颜色区分 */
+.side-tab-icon { width: 24px; height: 24px; }
+
+/* 主区域：纵向 flex，header + board */
+.main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.update-time { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.refresh-btn {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.refresh-btn:hover { background: var(--bg-card-hover); border-color: var(--accent); }
+.refresh-btn:disabled { opacity: 0.5; cursor: default; }
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 6px 28px 24px;
+  flex: 1;      /* 占满 header 之外的剩余高度 */
+  min-height: 0; /* 允许收缩出滚动条，而不是溢出遮挡 */
+  overflow: auto;
+}
+
+/* 纵向滚动条：平时完全透明，仅在滚动时短暂显示，停止滚动约 1.6s 后淡出 */
+.board::-webkit-scrollbar { width: 10px; }
+.board::-webkit-scrollbar-track { background: transparent; }
+.board::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.4s ease;
+}
+.board.show-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(31, 35, 41, 0.28); }
+.board.show-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(31, 35, 41, 0.45); }
+
+/* section 保持自然高度、禁止被 flex 压缩；窗口变矮时由 board 出滚动条，
+   保证卡片永远不遮挡板块标题、卡片间距恒定 */
+.board section { display: flex; flex-direction: column; flex: none; }
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  margin: 4px 0 10px;
+}
+
+/* 所有栏目统一 5 列 + 固定行高，保证所有卡片严格同等大小 */
+.grid {
+  display: grid;
+  gap: 14px;
+  grid-auto-rows: 148px;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* 窗口变窄一行排不下 5 张卡时，自动改为按需列数并换行，用户自行滚动查看 */
+@media (max-width: 1200px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+
+/* 非当前 Tab 的页面整体隐藏 */
+.board.page-hidden { display: none; }
+
+.card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(31, 35, 41, 0.06);
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, opacity 0.15s;
+  min-width: 0;
+  overflow: hidden;
+}
+.card:hover { background: var(--bg-card-hover); transform: translateY(-2px); }
+
+/* 拖拽中的卡片 + 插入位置提示 */
+.card.dragging { opacity: 0.45; transform: none; }
+.card.drop-before { box-shadow: inset 4px 0 0 var(--accent); }
+.card.drop-after { box-shadow: inset -4px 0 0 var(--accent); }
+
+.card-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 标题悬停/点击仅变蓝提示可点击，不加箭头与下划线 */
+.card-title:hover { color: var(--accent); }
+/* 标题默认统一字号；仅当实测溢出卡片宽度时才逐级缩小，保证所有卡片等高 */
+.card-title.title-md { font-size: 16px; }
+.card-title.title-sm { font-size: 14px; }
+.card-title .grip {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: grab;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.card:hover .grip { opacity: 1; }
+.card.dragging .grip { cursor: grabbing; }
+
+.card-price {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 18px; /* 涨跌幅与卡片标题字号接近 */
+  font-weight: 700;
+  line-height: 1.15;
+}
+.pill.up { color: var(--up); background: var(--up-bg); }
+.pill.down { color: var(--down); background: var(--down-bg); }
+.pill.flat { color: var(--flat); background: rgba(139, 148, 158, 0.12); }
+
+/* 涨跌点数：涨跌幅的配角，字号明显更小 */
+.change-amt { font-size: 13px; font-weight: 600; align-self: center; }
+.change-amt.up { color: var(--up); }
+.change-amt.down { color: var(--down); }
+.change-amt.flat { color: var(--flat); }
+
+.card-time {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card.loading .card-price,
+.card.loading .pill,
+.card.loading .change-amt { color: var(--text-dim); }
+
+/* 骨架卡片：数值占位区呼吸动效，提示正在加载 */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.card.loading .card-price,
+.card.loading .pill { animation: skeleton-pulse 1.4s ease-in-out infinite; }
+
+.error-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid var(--down);
+  color: var(--down);
+  font-size: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+.error-banner.hidden { display: none; }
