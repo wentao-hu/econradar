@@ -35,20 +35,13 @@ function switchPage(page) {
   // 刚切到可见的页面此前无法测量标题宽度，需要补一次字号适配
   refitAllTitles();
   refitAllPills();
-  try {
-    localStorage.setItem('econradar-active-page', page);
-  } catch (_) { /* 忽略持久化失败 */ }
 }
 
 for (const btn of tabButtons) {
   btn.addEventListener('click', () => switchPage(btn.dataset.page));
 }
 
-// 恢复上次停留的页面（默认市场概览）
-try {
-  const savedPage = localStorage.getItem('econradar-active-page');
-  if (savedPage && pages[savedPage]) switchPage(savedPage);
-} catch (_) { /* 默认停留在市场概览 */ }
+// 启动时始终停留在默认的市场概览页，不恢复上次停留的页面
 const updateTimeEl = document.getElementById('update-time');
 const refreshBtn = document.getElementById('refresh-btn');
 const errorBanner = document.getElementById('error-banner');

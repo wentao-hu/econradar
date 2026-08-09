@@ -271,34 +271,39 @@ body {
 }
 .fundflow-title:hover { color: var(--accent); }
 
-/* 排行周期单选组（今日/5日/10日）：分段控件样式，选中项高亮 */
+/* 排行周期单选组（今日/5日/10日）：圆圈 + 文字的网页式 radio 样式 */
 .ff-range {
   display: inline-flex;
-  gap: 4px;
+  gap: 18px;
   align-self: flex-start;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px;
+  align-items: center;
 }
 .ff-range-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   color: var(--text);
-  padding: 4px 12px;
-  border-radius: 6px;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
 }
 .ff-range-item input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none; /* 原生圆点隐藏，靠 label 底色表达选中态 */
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent; /* 未选中：空心灰边圆 */
+  cursor: pointer;
+  transition: border-color 0.15s;
 }
-.ff-range-item:has(input:checked) {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 600;
+.ff-range-item input:hover { border-color: var(--accent); }
+.ff-range-item input:checked {
+  border: 2px solid var(--accent); /* 选中：蓝色加粗边框，中间保持空心 */
 }
 
 .ff-section-head {
