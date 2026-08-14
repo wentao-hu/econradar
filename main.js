@@ -91,6 +91,19 @@ function createWindow() {
   win.once('ready-to-show', () => win.show());
 
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // 拦截 Cmd/Ctrl+R：触发数据刷新而非页面 reload
+  // （reload 会重置窗口状态、丢失进行中的拖拽，且语义是"重新加载"而非"刷新数据"）
+  win.webContents.on('before-input-event', (event, input) => {
+    if (
+      input.type === 'keyDown' &&
+      input.key.toLowerCase() === 'r' &&
+      (input.meta || input.control)
+    ) {
+      event.preventDefault();
+      win.webContents.send('app:refresh');
+    }
+  });
 }
 
 // 统一注册数据拉取通道：fresh=true（手动刷新）绕过预热结果缓存，强制重新抓取

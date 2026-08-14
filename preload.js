@@ -19,4 +19,6 @@ contextBridge.exposeInMainWorld('econ', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   /** 通知主进程把 localStorage 挂起写入立刻落盘（用于拖拽排序等关键设置） */
   flushStorage: () => ipcRenderer.send('storage:flush'),
+  /** 主进程拦截 Cmd/Ctrl+R 后通知渲染进程触发数据刷新（不 reload 页面） */
+  onRefresh: (cb) => ipcRenderer.on('app:refresh', () => cb()),
 });

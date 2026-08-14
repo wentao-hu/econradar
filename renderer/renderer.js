@@ -481,12 +481,17 @@ document
 let refreshing = false;
 
 /**
- * 拉取全部数据并逐源渲染：哪个源先到就先更新哪组卡片，
- * 不再等待最慢的源（PCE 走隐藏窗口 + 反爬重试，最坏可能耗时几十秒），
- * 避免行情、东财宏观等快数据陪等；最终渲染结果与一次性等待完全一致。
- * isManual=true（点击“刷新”）时绕过主进程预热结果缓存，强制重新抓取。
+ * 拉取全部数据并逐源渲染：哪个源先到就先更新哪组卡片。
+ *
+ * 按钮锁只跟随核心数据（indices）：行情到达（成功或失败）即恢复刷新按钮，
+ * 不再等待最慢的源。PCE 走隐藏窗口 + 反爬重试，最坏可能耗时近百秒，
+ * 若按钮锁等它，用户在 PCE 完成前完全无法再次刷新——表现为“按钮按不动”。
+ * 慢源继续后台渲染，到达即更新对应卡片，不阻塞用户。主进程 makeSharedFetch
+ * 的 inflight 复用保证并发请求不会重复抓取同一数据源。
+ *
+ * isManual=true（点击“刷新”或 Cmd/Ctrl+R）时绕过主进程预热结果缓存，强制重新抓取。
  */
-async function refresh(isManual = false) {
+function refresh(isManual = false) {
   if (refreshing) return;
   refreshing = true;
   refreshBtn.disabled = true;
@@ -494,7 +499,6 @@ async function refresh(isManual = false) {
   // 本轮已到达的数据逐源累积，任一源到达即落缓存，下次启动才能完整先显
   const freshData = [];
   let indicesFetchedAt = null; // 行情时间戳：缓存与顶部“更新于”共用
-  let indicesError = null;
   const ffRangeAtFetch = ffRange; // 记录发起时的排行周期，渲染时若已切换则丢弃资金流向结果
 
   const persistCache = () => {
@@ -509,52 +513,47 @@ async function refresh(isManual = false) {
     persistCache();
   };
 
-  const jobs = [
-    // 行情是主数据：成功时更新顶部时间并清错误条；失败时出错误条
-    window.econ.getIndices(isManual)
-      .then((res) => {
-        if (!res || !res.ok) throw new Error((res && res.error) || '未知错误');
-        indicesFetchedAt = res.fetchedAt;
-        freshData.push(...res.data);
-        renderItems(res.data);
-        cacheShown = false;
-        updateTimeEl.textContent = `更新于 ${fmtClock(res.fetchedAt)}`;
-        errorBanner.classList.add('hidden');
-        persistCache();
-      })
-      .catch((err) => {
-        indicesError = err;
-      }),
-    window.econ.getUsMacro(isManual).then(renderChunk).catch(() => {}),
-    window.econ.getUsPce(isManual).then(renderChunk).catch(() => {}),
-    window.econ.getIndustries(isManual).then(renderChunk).catch(() => {}),
-    // 资金流向独立成败，不拖垮行情看板；周期已切换时由切换回调自行渲染
-    window.econ.getFundFlow(ffRangeAtFetch, isManual)
-      .then((res) => {
-        if (ffRangeAtFetch !== ffRange) return;
-        if (res && res.ok) {
-          renderFundFlow(res.data, ffRangeAtFetch);
-          saveFundFlowCache(ffRangeAtFetch, res.data, res.fetchedAt);
-        } else {
-          showFundFlowError();
-        }
-      })
-      .catch(() => {
-        if (ffRangeAtFetch === ffRange) showFundFlowError();
-      }),
-  ];
+  // 行情是主数据：成功时更新顶部时间并清错误条，失败时出错误条；
+  // 无论成败，行情处理完即恢复刷新按钮——慢源不再阻塞用户再次刷新
+  window.econ.getIndices(isManual)
+    .then((res) => {
+      if (!res || !res.ok) throw new Error((res && res.error) || '未知错误');
+      indicesFetchedAt = res.fetchedAt;
+      freshData.push(...res.data);
+      renderItems(res.data);
+      cacheShown = false;
+      updateTimeEl.textContent = `更新于 ${fmtClock(res.fetchedAt)}`;
+      errorBanner.classList.add('hidden');
+      persistCache();
+    })
+    .catch((err) => {
+      errorBanner.textContent = `数据获取失败：${err.message || err}（可点击“刷新”重试）`;
+      errorBanner.classList.remove('hidden');
+      // 已展示缓存时保留缓存时间戳，避免把“更新于”覆盖成无信息量的失败文案
+      if (!cacheShown) updateTimeEl.textContent = '更新失败';
+    })
+    .finally(() => {
+      refreshing = false;
+      refreshBtn.disabled = false;
+    });
 
-  await Promise.allSettled(jobs);
-
-  if (indicesError) {
-    errorBanner.textContent = `数据获取失败：${indicesError.message || indicesError}（可点击“刷新”重试）`;
-    errorBanner.classList.remove('hidden');
-    // 已展示缓存时保留缓存时间戳，避免把“更新于”覆盖成无信息量的失败文案
-    if (!cacheShown) updateTimeEl.textContent = '更新失败';
-  }
-
-  refreshing = false;
-  refreshBtn.disabled = false;
+  // 慢源：后台渲染，不阻塞刷新按钮；主进程 inflight 复用保证不重复抓取
+  window.econ.getUsMacro(isManual).then(renderChunk).catch(() => {});
+  window.econ.getUsPce(isManual).then(renderChunk).catch(() => {});
+  window.econ.getIndustries(isManual).then(renderChunk).catch(() => {});
+  window.econ.getFundFlow(ffRangeAtFetch, isManual)
+    .then((res) => {
+      if (ffRangeAtFetch !== ffRange) return;
+      if (res && res.ok) {
+        renderFundFlow(res.data, ffRangeAtFetch);
+        saveFundFlowCache(ffRangeAtFetch, res.data, res.fetchedAt);
+      } else {
+        showFundFlowError();
+      }
+    })
+    .catch(() => {
+      if (ffRangeAtFetch === ffRange) showFundFlowError();
+    });
 }
 
 /* ---------- 启动：骨架卡片 -> 缓存先显 -> 后台刷新 ---------- */
@@ -598,4 +597,6 @@ boardEl.addEventListener(
 for (const grid of Object.values(grids)) setupGridDnd(grid);
 // 手动刷新传 isManual=true：绕过主进程预热结果缓存，始终拉最新数据
 refreshBtn.addEventListener('click', () => refresh(true));
+// Cmd/Ctrl+R 快捷刷新（主进程 before-input-event 拦截后转发，避免触发页面 reload）
+window.econ.onRefresh(() => refresh(true));
 bootstrap();
