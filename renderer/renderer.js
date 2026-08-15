@@ -46,6 +46,10 @@ const updateTimeEl = document.getElementById('update-time');
 const refreshBtn = document.getElementById('refresh-btn');
 const errorBanner = document.getElementById('error-banner');
 
+// 快捷键提示按平台显示：macOS 为 ⌘R，Windows/Linux 为 Ctrl+R
+refreshBtn.title =
+  window.econ.platform === 'darwin' ? '立即刷新（⌘R）' : '立即刷新（Ctrl+R）';
+
 function fmtPrice(v) {
   if (v == null) return '--';
   return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });

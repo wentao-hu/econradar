@@ -3,6 +3,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('econ', {
+  /** 当前运行平台（darwin / win32 / linux），用于渲染层按平台显示快捷键提示等 */
+  platform: process.platform,
   /** 拉取全部指数数据（fresh=true 手动刷新，绕过预热结果缓存） */
   getIndices: (fresh) => ipcRenderer.invoke('indices:fetch', fresh),
   /** 拉取美国宏观经济数据（东财口径，不含 PCE） */
