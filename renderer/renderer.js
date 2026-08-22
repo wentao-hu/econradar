@@ -212,7 +212,9 @@ function createCard(item) {
   title.innerHTML = '<span class="name"></span><span class="grip" title="按住拖动卡片">⠿</span>';
   applyTitle(title, item.name);
   title.querySelector('.grip').addEventListener('click', (e) => e.stopPropagation());
-  title.addEventListener('click', () => window.econ.openExternal(item.url));
+  // 跳转链接存 dataset 而非闭包：卡片可能先用缓存数据创建，新数据到达时更新链接
+  card.dataset.url = item.url;
+  title.addEventListener('click', () => window.econ.openExternal(card.dataset.url));
 
   // 第一行：涨跌幅（主角，大字）+ 涨跌点数（右侧配角，小字）
   const row = document.createElement('div');
@@ -262,6 +264,7 @@ function updateCard(card, item) {
   }
 
   applyTitle(titleEl, item.name);
+  if (item.url) card.dataset.url = item.url;
 
   // 美国宏观指标：主显示最新值（带单位），pill 为较上期变化，配角显示前值
   if (item.kind === 'macro') {
