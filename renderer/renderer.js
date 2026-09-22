@@ -1,7 +1,7 @@
 'use strict';
 
 /* EconRadar 渲染进程：指数/大宗商品看板 */
-/* 约定：上涨绿色、下跌红色，数字前始终带 + / - 号 */
+/* 约定：上涨红色、下跌绿色（A股惯例，见 style.css 的 --up/--down），数字前始终带 + / - 号 */
 /* 刷新策略：启动时自动拉取一次，之后仅在用户点击“刷新”时更新 */
 /* 卡片顺序：同一栏目内可拖拽排序（左右/上下），顺序持久化到 localStorage；禁止跨栏目拖动 */
 
@@ -194,6 +194,8 @@ function setupGridDnd(grid) {
       grid.appendChild(dragCtx.card);
     }
     clearDropHints();
+    // 无数据卡片不参与手动排序：拖完立刻归位到板块末尾，保证该规则任何时候都成立
+    reorderUsMacroGrid();
     saveOrder(grid);
   });
 }
@@ -203,6 +205,9 @@ function setupGridDnd(grid) {
 function createCard(item) {
   const card = document.createElement('div');
   card.className = 'card loading';
+  // 美国宏观经济板块以指标绝对值为主要观察对象：数值排在涨跌幅之前并放大着色（见 style.css）
+  const valueFirst = item.group === 'usmacro';
+  if (valueFirst) card.classList.add('card-value-first');
   card.dataset.code = item.code;
   card.draggable = true;
 
@@ -216,7 +221,7 @@ function createCard(item) {
   card.dataset.url = item.url;
   title.addEventListener('click', () => window.econ.openExternal(card.dataset.url));
 
-  // 第一行：涨跌幅（主角，大字）+ 涨跌点数（右侧配角，小字）
+  // 涨跌幅（主角大字），涨跌点数为其配角小字
   const row = document.createElement('div');
   row.className = 'card-row';
   const pill = document.createElement('span');
@@ -225,10 +230,8 @@ function createCard(item) {
   const amt = document.createElement('span');
   amt.className = 'change-amt flat';
   amt.textContent = '--';
-  row.appendChild(pill);
-  row.appendChild(amt);
 
-  // 第二行：绝对数值（当前点位）
+  // 绝对数值（当前点位）
   const price = document.createElement('div');
   price.className = 'card-price';
   price.textContent = '--';
@@ -237,8 +240,19 @@ function createCard(item) {
   time.className = 'card-time';
 
   card.appendChild(title);
-  card.appendChild(row);
-  card.appendChild(price);
+  if (valueFirst) {
+    // usmacro：第一行「左绝对值 + 右涨跌幅」，第二行前值（前值不进 row，独占一行）
+    row.appendChild(price);
+    row.appendChild(pill);
+    card.appendChild(row);
+    card.appendChild(amt);
+  } else {
+    // 其余板块维持「涨跌幅为主、数值在后」的既有布局
+    row.appendChild(pill);
+    row.appendChild(amt);
+    card.appendChild(row);
+    card.appendChild(price);
+  }
   card.appendChild(time);
 
   setupCardDnd(card);
@@ -254,7 +268,10 @@ function updateCard(card, item) {
   const timeEl = card.querySelector('.card-time');
 
   if (item.error) {
+    // 标记无数据：美国宏观经济板块据此把这类卡片排到板块末尾（见 reorderUsMacroGrid）
+    card.classList.add('no-data');
     priceEl.textContent = '--';
+    priceEl.className = 'card-price'; // 清掉上次的涨跌色，避免「--」残留红绿
     pillEl.className = 'pill flat';
     pillEl.textContent = '暂无数据';
     amtEl.textContent = '';
@@ -262,6 +279,7 @@ function updateCard(card, item) {
     fitPill(card.querySelector('.card-row'));
     return;
   }
+  card.classList.remove('no-data');
 
   applyTitle(titleEl, item.name);
   if (item.url) card.dataset.url = item.url;
@@ -271,10 +289,12 @@ function updateCard(card, item) {
     const dir = directionOf(item.change);
     pillEl.className = `pill ${dir}`;
     pillEl.textContent = fmtSigned(item.change, item.unit, item.digits);
-    amtEl.className = `change-amt ${dir}`;
+    // 前值只是参照，不着涨跌色
+    amtEl.className = 'change-amt';
     amtEl.textContent =
       item.prev != null ? `前值 ${item.prev.toFixed(item.digits)}${item.unit}` : '';
     priceEl.textContent = `${item.value.toFixed(item.digits)}${item.unit}`;
+    colorValue(priceEl, item, dir);
     timeEl.textContent = item.time || '';
     fitPill(card.querySelector('.card-row'));
     return;
@@ -283,13 +303,25 @@ function updateCard(card, item) {
   const dir = directionOf(item.changePct);
   pillEl.className = `pill ${dir}`;
   pillEl.textContent = fmtSigned(item.changePct, '%');
-  amtEl.className = `change-amt ${dir}`;
-  // 配角涨跌点数：大数值 2 位小数，小数值（如原油/VIX）3 位小数
-  amtEl.textContent =
-    item.change != null ? fmtSigned(item.change, '', Math.abs(item.change) >= 10 ? 2 : 3) : '';
-  priceEl.textContent = fmtPrice(item.price);
+  priceEl.textContent = `${fmtPrice(item.price)}${item.unit || ''}`;
+  colorValue(priceEl, item, dir);
+  if (item.group === 'usmacro') {
+    // 美国宏观经济板块三位统一为「绝对值 / 涨跌幅 / 前值」：第三位不显示涨跌绝对数字，且不着色
+    amtEl.className = 'change-amt';
+    amtEl.textContent = item.prev != null ? `前值 ${fmtPrice(item.prev)}${item.unit || ''}` : '';
+  } else {
+    amtEl.className = `change-amt ${dir}`;
+    // 配角涨跌点数：大数值 2 位小数，小数值（如原油/VIX）3 位小数
+    amtEl.textContent =
+      item.change != null ? fmtSigned(item.change, '', Math.abs(item.change) >= 10 ? 2 : 3) : '';
+  }
   timeEl.textContent = item.time || '';
   fitPill(card.querySelector('.card-row'));
+}
+
+/** 美国宏观经济板块的绝对值为主要指标，按涨跌方向着色；其余板块数值保持中性色 */
+function colorValue(priceEl, item, dir) {
+  priceEl.className = item.group === 'usmacro' ? `card-price ${dir}` : 'card-price';
 }
 
 const cardMap = new Map();
@@ -346,6 +378,23 @@ function renderItems(items) {
     const card = cardMap.get(item.code);
     if (card) updateCard(card, item);
   }
+  // 仅当本组数据涉及美国宏观板块时才重排，避免其他数据源到达时做无谓的遍历
+  if (items.some((it) => it.group === 'usmacro')) reorderUsMacroGrid();
+}
+
+/**
+ * 美国宏观经济板块：获取失败/无数据的卡片自动排到板块末尾。
+ * 只做稳定分区——正常卡片之间保持原有相对顺序（含用户手动拖拽的结果）；
+ * 结果不写回 localStorage，用户排序里保存的始终是原始拖拽顺序。
+ */
+function reorderUsMacroGrid() {
+  const grid = grids.usmacro;
+  const cards = Array.from(grid.querySelectorAll('.card'));
+  const noData = cards.filter((c) => c.classList.contains('no-data'));
+  if (!noData.length) return;
+  const desired = cards.filter((c) => !c.classList.contains('no-data')).concat(noData);
+  if (cards.every((c, i) => c === desired[i])) return;
+  for (const card of desired) grid.appendChild(card);
 }
 
 /* ---------- 资金流向缓存：与行情一样先显后刷，按排行周期分别缓存 ---------- */
@@ -541,6 +590,7 @@ function refresh(isManual = false) {
     });
 
   // 慢源：后台渲染，不阻塞刷新按钮；主进程 inflight 复用保证不重复抓取
+  window.econ.getUsBond(isManual).then(renderChunk).catch(() => {});
   window.econ.getUsMacro(isManual).then(renderChunk).catch(() => {});
   window.econ.getUsPce(isManual).then(renderChunk).catch(() => {});
   window.econ.getIndustries(isManual).then(renderChunk).catch(() => {});
