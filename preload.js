@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('econ', {
   platform: process.platform,
   /** 拉取全部指数数据（fresh=true 手动刷新，绕过预热结果缓存） */
   getIndices: (fresh) => ipcRenderer.invoke('indices:fetch', fresh),
+  /** 拉取美债收益率（2/10/30 年三个期限） */
+  getUsBond: (fresh) => ipcRenderer.invoke('usbond:fetch', fresh),
   /** 拉取美国宏观经济数据（东财口径，不含 PCE） */
   getUsMacro: (fresh) => ipcRenderer.invoke('usmacro:fetch', fresh),
   /** 拉取美国 PCE 数据（investing，独立通道，耗时可能较长） */

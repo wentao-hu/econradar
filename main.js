@@ -12,6 +12,7 @@ const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fetchIndices, INDEX_META } = require('./lib/indices');
+const { fetchUsBond, USBOND_META } = require('./lib/usbond');
 const { fetchUsMacro, MACRO_META } = require('./lib/usmacro');
 const { fetchUsPce, PCE_META } = require('./lib/uspce');
 const { fetchIndustries, INDUSTRY_META } = require('./lib/industries');
@@ -55,6 +56,7 @@ function makeSharedFetch(fetchFn) {
 // PCE 走隐藏窗口 + 反爬重试，最坏可能耗时几十秒，
 // 合并在一个通道里会让东财宏观的快数据陪等，拖慢首屏数据更新。
 const fetchIndicesShared = makeSharedFetch(fetchIndices);
+const fetchUsBondShared = makeSharedFetch(fetchUsBond);
 const fetchUsMacroShared = makeSharedFetch(fetchUsMacro);
 const fetchUsPceShared = makeSharedFetch(fetchUsPce);
 const fetchIndustriesShared = makeSharedFetch(fetchIndustries);
@@ -120,6 +122,8 @@ function handleFetch(channel, sharedFetch) {
 
 // 渲染进程请求最新指数数据
 handleFetch('indices:fetch', fetchIndicesShared);
+// 渲染进程请求美债收益率（东财行情，2/10/30 年三个期限）
+handleFetch('usbond:fetch', fetchUsBondShared);
 // 渲染进程请求美国宏观数据（东财口径，不含 PCE）
 handleFetch('usmacro:fetch', fetchUsMacroShared);
 // 渲染进程请求美国 PCE 数据（investing，独立通道避免拖慢东财宏观）
@@ -139,7 +143,13 @@ ipcMain.handle('fundflow:fetch', async (_event, range, fresh) => {
 });
 
 // 渲染进程请求指标静态元数据（分组/名称/链接），用于首屏立即渲染骨架卡片
-ipcMain.handle('indices:meta', () => [...INDEX_META, ...MACRO_META, ...PCE_META, ...INDUSTRY_META]);
+ipcMain.handle('indices:meta', () => [
+  ...INDEX_META,
+  ...USBOND_META,
+  ...MACRO_META,
+  ...PCE_META,
+  ...INDUSTRY_META,
+]);
 
 // 渲染进程保存关键设置（如拖拽排序）后，立刻把 localStorage 挂起写入落盘。
 // Chromium 的 DOM Storage 按秒级批量提交，异常退出（崩溃/强杀/断电）会丢掉未提交的写入。
@@ -164,8 +174,9 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  // 启动即预热行情、宏观、PCE、行业与资金流向数据，与窗口加载并行；失败不影响渲染进程后续自行重试
+  // 启动即预热行情、美债、宏观、PCE、行业与资金流向数据，与窗口加载并行；失败不影响渲染进程后续自行重试
   fetchIndicesShared().catch(() => {});
+  fetchUsBondShared().catch(() => {});
   fetchUsMacroShared().catch(() => {});
   fetchUsPceShared().catch(() => {});
   fetchIndustriesShared().catch(() => {});

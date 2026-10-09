@@ -236,6 +236,40 @@ body {
 .change-amt.down { color: var(--down); }
 .change-amt.flat { color: var(--flat); }
 
+/* ---------- 美国宏观经济板块：绝对数值为主指标 ---------- */
+/* 该板块以利率/收益率/指数点位等绝对值为主要观察对象，卡片分两行：
+   第一行「左绝对值(放大着色) + 右涨跌幅」，第二行前值；涨跌幅退为配角小字。 */
+.card-value-first .card-price {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.card-value-first .card-price.up { color: var(--up); }
+.card-value-first .card-price.down { color: var(--down); }
+.card-value-first .card-price.flat { color: var(--flat); }
+
+/* 第一行左右分列：绝对值靠左，涨跌幅靠右 */
+.card-value-first .card-row { justify-content: space-between; }
+/* 前值独占第二行；card 是纵向 flex，需覆盖 .change-amt 默认的居中对齐改为左对齐 */
+.card-value-first .change-amt { align-self: flex-start; }
+/* 无数据时前值为空，不留出空的第二行 */
+.card.no-data .change-amt { display: none; }
+
+/* 涨跌幅去掉色块与内边距，成为普通小字 */
+.card-value-first .pill {
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  background: none;
+}
+.card-value-first .pill.up,
+.card-value-first .pill.down,
+.card-value-first .pill.flat { background: none; }
+/* 配角小字本就窄，溢出档位比主指标时整体下调一档 */
+.card-value-first .pill.pill-md { font-size: 12px; }
+.card-value-first .pill.pill-sm { font-size: 11px; }
+.card-value-first .pill.pill-xs { font-size: 10px; }
+
 .card-time {
   font-size: 11px;
   color: var(--text-dim);
