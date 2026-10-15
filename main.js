@@ -52,9 +52,9 @@ function makeSharedFetch(fetchFn) {
 }
 
 // 各数据源均随启动预热，与窗口加载并行。
-// 东财宏观与 investing 的 PCE 拆成两个独立通道：
-// PCE 走隐藏窗口 + 反爬重试，最坏可能耗时几十秒，
-// 合并在一个通道里会让东财宏观的快数据陪等，拖慢首屏数据更新。
+// PCE 与东财宏观分开成两个通道：
+// 改 BEA 直连后单次约 2s，但仍不复用东财宏观那条会一起返回的 Promise，
+// PCE 自身 30 分钟缓存也不至于拖住美债、非农等更新更频繁的指标。
 const fetchIndicesShared = makeSharedFetch(fetchIndices);
 const fetchUsBondShared = makeSharedFetch(fetchUsBond);
 const fetchUsMacroShared = makeSharedFetch(fetchUsMacro);
@@ -126,7 +126,7 @@ handleFetch('indices:fetch', fetchIndicesShared);
 handleFetch('usbond:fetch', fetchUsBondShared);
 // 渲染进程请求美国宏观数据（东财口径，不含 PCE）
 handleFetch('usmacro:fetch', fetchUsMacroShared);
-// 渲染进程请求美国 PCE 数据（investing，独立通道避免拖慢东财宏观）
+// 渲染进程请求美国 PCE 数据（BEA 官方页直连）
 handleFetch('uspce:fetch', fetchUsPceShared);
 // 渲染进程请求行业指数数据
 handleFetch('industries:fetch', fetchIndustriesShared);

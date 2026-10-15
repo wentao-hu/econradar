@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('econ', {
   getUsBond: (fresh) => ipcRenderer.invoke('usbond:fetch', fresh),
   /** 拉取美国宏观经济数据（东财口径，不含 PCE） */
   getUsMacro: (fresh) => ipcRenderer.invoke('usmacro:fetch', fresh),
-  /** 拉取美国 PCE 数据（investing，独立通道，耗时可能较长） */
+  /** 拉取美国 PCE / 核心PCE 数据（BEA 官方页，独立通道） */
   getUsPce: (fresh) => ipcRenderer.invoke('uspce:fetch', fresh),
   /** 拉取行业指数数据（中国行业 + 美国行业） */
   getIndustries: (fresh) => ipcRenderer.invoke('industries:fetch', fresh),
