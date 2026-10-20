@@ -1,6 +1,6 @@
 {
   "name": "econradar",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "EconRadar - 国内外主要指数与宏观经济指标雷达",
   "main": "main.js",
   "license": "MIT",
@@ -29,8 +29,7 @@
       "identity": null,
       "hardenedRuntime": true,
       "target": [
-        "dmg",
-        "zip"
+        "dir"
       ]
     },
     "win": {

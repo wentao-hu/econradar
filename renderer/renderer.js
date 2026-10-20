@@ -10,7 +10,8 @@ const grids = {
   global: document.getElementById('grid-global'),
   usmacro: document.getElementById('grid-usmacro'),
   commodity: document.getElementById('grid-commodity'),
-  cnIndustry: document.getElementById('grid-cn-industry'),
+  cnIndex: document.getElementById('grid-cn-index'),
+  cnCni: document.getElementById('grid-cn-cni'),
   usIndustry: document.getElementById('grid-us-industry'),
 };
 
@@ -359,7 +360,9 @@ function loadCache() {
       typeof cached.fetchedAt === 'string' &&
       cached.data.every((it) => it && typeof it.code === 'string' && typeof it.group === 'string')
     ) {
-      return cached;
+      // 过滤旧版本分组（如已拆分的 cnIndustry），避免缓存数据落到错误的网格
+      const data = cached.data.filter((it) => grids[it.group]);
+      if (data.length) return { ...cached, data };
     }
   } catch (_) { /* 缓存损坏时按无缓存处理 */ }
   return null;
