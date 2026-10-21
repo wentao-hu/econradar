@@ -396,6 +396,32 @@ svg {
   flex: none;
 }
 
+/* ---------- 置顶区 ---------- */
+
+.pinned-group {
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+}
+
+.pinned-group[hidden] {
+  display: none;
+}
+
+.pinned-group .section-title {
+  margin-bottom: 10px;
+  color: var(--accent);
+}
+
+.pinned-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-dim);
+}
+
 /* ---------- 卡片网格 ---------- */
 
 .grid {
@@ -475,8 +501,42 @@ svg {
 .card-title.title-md { font-size: calc(var(--title-size) - 2px); }
 .card-title.title-sm { font-size: calc(var(--title-size) - 3px); }
 
-.card-title .grip {
+.card-title .pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
   margin-left: auto;
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.16s, color 0.16s;
+}
+
+.card-title .pin svg {
+  width: 12px;
+  height: 12px;
+}
+
+.card:hover .pin {
+  opacity: 0.55;
+}
+
+.card-title .pin:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.card-title .pin.active {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.card-title .pin.active svg {
+  fill: currentColor;
+}
+
+.card-title .grip {
   flex: none;
   font-size: 12px;
   line-height: 1;
@@ -1014,6 +1074,13 @@ svg {
   .group { margin-bottom: 16px; }
   .section-title { font-size: 12px; margin-bottom: 8px; }
 
+  .pinned-group {
+    padding: 9px 10px 10px;
+    border-radius: 15px;
+  }
+
+  .pinned-group .section-title { margin-bottom: 8px; }
+
   .grid { gap: 9px; }
 
   .card-title { gap: 4px; }
@@ -1023,6 +1090,9 @@ svg {
     font-size: 11px;
     opacity: 0.32;
   }
+  /* 移动端没有 hover，置顶按钮常驻浅色显示 */
+  .card-title .pin { opacity: 0.32; }
+  .card-title .pin svg { width: 11px; height: 11px; }
   .card-row { gap: 6px; }
   .pill { padding: 2px 7px; border-radius: 6px; }
   .change-amt { font-size: 10.5px; }
