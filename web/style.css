@@ -873,9 +873,19 @@ svg {
 
 /* 900px 以下顶部撑不下「品牌 + 居中 Tab + 状态」，改用底部导航 */
 @media (max-width: 900px) {
-  :root { --content-pad: 20px 24px 96px; }
+  :root { --content-pad: 20px 24px 84px; }
 
   .tabs { display: none; }
+
+  /* 向下滚动时收起顶栏，把高度让给正文；向上滚动立即恢复 */
+  .topbar {
+    transition: transform 0.22s ease;
+    will-change: transform;
+  }
+
+  .topbar.topbar-hidden {
+    transform: translateY(-100%);
+  }
 
   .bottom-nav {
     position: fixed;
@@ -884,7 +894,7 @@ svg {
     bottom: 0;
     z-index: 70;
     display: flex;
-    padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    padding: 3px 6px calc(3px + env(safe-area-inset-bottom));
     background: var(--nav-bg);
     -webkit-backdrop-filter: blur(20px) saturate(1.6);
     backdrop-filter: blur(20px) saturate(1.6);
@@ -897,18 +907,18 @@ svg {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    padding: 6px 0 5px;
+    gap: 2px;
+    padding: 4px 0 3px;
     border-radius: 10px;
     color: var(--text-dim);
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 500;
     transition: color 0.16s, background 0.16s;
   }
 
   .bottom-tab svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
 
   .bottom-tab.active {
@@ -919,15 +929,15 @@ svg {
   .bottom-tab.active::before {
     content: "";
     position: absolute;
-    top: -5px;
-    width: 22px;
-    height: 2.5px;
+    top: -3px;
+    width: 20px;
+    height: 2px;
     border-radius: 0 0 3px 3px;
     background: var(--accent);
   }
 
   .toast {
-    bottom: calc(78px + env(safe-area-inset-bottom));
+    bottom: calc(64px + env(safe-area-inset-bottom));
   }
 }
 
@@ -940,59 +950,65 @@ svg {
     --pill-size: 16px;
     --price-size: 12px;
     --time-size: 9.5px;
-    --card-min-height: 116px;
-    --card-pad: 11px 12px 9px;
+    --card-min-height: 104px;
+    --card-pad: 10px 11px 8px;
     --radius-card: 13px;
-    --content-pad: 16px 14px 96px;
+    --content-pad: 12px 14px 84px;
   }
 
   .topbar {
-    gap: 10px;
-    padding: 10px 14px;
-    padding-top: calc(10px + env(safe-area-inset-top));
+    gap: 8px;
+    padding: 6px 12px;
+    padding-top: calc(6px + env(safe-area-inset-top));
   }
 
   .brand-mark {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
   }
 
-  .brand-mark svg { width: 20px; height: 20px; }
-  .brand-text strong { font-size: 14.5px; }
+  .brand-mark svg { width: 18px; height: 18px; }
+  .brand-text strong { font-size: 14px; }
   .brand-text small { display: none; }
 
   .tabs { display: none; }
 
-  .topbar-actions { gap: 9px; }
+  .topbar-actions { gap: 8px; }
 
-  .data-status { font-size: 11px; gap: 6px; }
+  .data-status { font-size: 10.5px; gap: 6px; }
   .status-hint { display: none; }
 
   .refresh-btn {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     padding: 0;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 9px;
   }
 
-  .refresh-btn svg { width: 16px; height: 16px; }
+  .refresh-btn svg { width: 14px; height: 14px; }
   .refresh-label { display: none; }
 
-  .page-head {
-    margin-bottom: 15px;
+  /* 市场 / 行业页的标题与底部 Tab 重复，手机端直接省略，把高度让给卡片 */
+  #page-market .page-head,
+  #page-industry .page-head {
+    display: none;
+  }
+
+  /* 资金流向页保留紧凑标题（右侧有核对数据入口） */
+  #page-fundflow .page-head {
+    margin-bottom: 10px;
     align-items: center;
   }
 
-  .page-head h1 { font-size: 20px; }
-  .page-head p { font-size: 11.5px; margin-top: 3px; }
-  .page-badge { font-size: 10px; padding: 4px 8px; }
+  #page-fundflow .page-head h1 { font-size: 18px; }
+  #page-fundflow .page-head p { display: none; }
 
-  .group { margin-bottom: 20px; }
-  .section-title { font-size: 12px; margin-bottom: 9px; }
+  .group { margin-bottom: 16px; }
+  .section-title { font-size: 12px; margin-bottom: 8px; }
 
-  .grid { gap: 10px; }
+  .grid { gap: 9px; }
 
   .card-title { gap: 4px; }
   .card-title .grip { display: none; }
