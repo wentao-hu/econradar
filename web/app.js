@@ -41,16 +41,6 @@ const canDrag = window.matchMedia('(pointer: fine)').matches;
 let state = { data: null, loading: false, fromCache: false };
 let toastTimer = null;
 
-/* 移动端顶栏：向下滚动收起、向上滚动出现，把高度让给正文 */
-const topbarEl = document.querySelector('.topbar');
-const topbarState = { hidden: false, lastY: 0 };
-
-function setTopbarHidden(hidden) {
-  if (topbarState.hidden === hidden) return;
-  topbarState.hidden = hidden;
-  topbarEl.classList.toggle('topbar-hidden', hidden);
-}
-
 /* ---------- 页面切换 ---------- */
 
 function switchPage(page, { updateHash = true } = {}) {
@@ -63,14 +53,12 @@ function switchPage(page, { updateHash = true } = {}) {
   }
   if (updateHash) history.replaceState(null, '', `#${page}`);
 
-  // 切页回到顶部，并恢复顶栏（用户刚操作过导航，需要看到页面状态）
+  // 切页回到顶部
   const rootEl = document.documentElement;
   const prevBehavior = rootEl.style.scrollBehavior;
   rootEl.style.scrollBehavior = 'auto';
   window.scrollTo(0, 0);
   rootEl.style.scrollBehavior = prevBehavior;
-  setTopbarHidden(false);
-  topbarState.lastY = 0;
 
   // 刚切到可见的页面此前无法测量宽度，需要补一次字号适配
   refitAllTitles();
@@ -712,28 +700,6 @@ document.addEventListener('visibilitychange', () => {
 if (canDrag) {
   for (const grid of Object.values(grids)) setupGridDnd(grid);
 }
-
-// 窄屏向下滚动收起顶栏，向上滚动立即恢复
-window.addEventListener(
-  'scroll',
-  () => {
-    if (window.innerWidth > 900) {
-      setTopbarHidden(false);
-      topbarState.lastY = window.scrollY;
-      return;
-    }
-    const y = window.scrollY;
-    if (y <= 12) {
-      setTopbarHidden(false);
-    } else if (y > topbarState.lastY + 8 && y > 56) {
-      setTopbarHidden(true);
-    } else if (y < topbarState.lastY - 8) {
-      setTopbarHidden(false);
-    }
-    topbarState.lastY = y;
-  },
-  { passive: true }
-);
 
 // 注册 Service Worker：满足 Chrome「安装为应用」的条件，并提供离线兜底
 if ('serviceWorker' in navigator) {

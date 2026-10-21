@@ -883,14 +883,9 @@ svg {
 
   .tabs { display: none; }
 
-  /* 向下滚动时收起顶栏，把高度让给正文；向上滚动立即恢复 */
+  /* 顶部栏属于正文，随页面自然滚走；只有底部 Tab 固定 */
   .topbar {
-    transition: transform 0.22s ease;
-    will-change: transform;
-  }
-
-  .topbar.topbar-hidden {
-    transform: translateY(-100%);
+    position: static;
   }
 
   .bottom-nav {
