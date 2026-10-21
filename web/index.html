@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+  <meta name="description" content="EconRadar 经济雷达：国内外主要指数、行业指数、美国宏观指标与板块资金流向。" />
+  <title>EconRadar · 经济雷达</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='white' stroke-opacity='.45' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='none' stroke='white' stroke-opacity='.7' stroke-width='2'/%3E%3Cpath d='M16 16 L23 8' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='21.5' cy='9.5' r='2' fill='white'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9" opacity=".35" />
+            <circle cx="12" cy="12" r="4.6" opacity=".6" />
+            <path d="M12 12l6.4-6.4" />
+            <circle cx="16.4" cy="7.6" r="1.7" fill="currentColor" stroke="none" />
+          </svg>
+        </span>
+        <span class="brand-text">
+          <strong>EconRadar</strong>
+          <small>经济雷达</small>
+        </span>
+      </div>
+
+      <nav class="tabs" role="tablist" aria-label="页面切换">
+        <button class="tab active" data-page="market" role="tab" aria-selected="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 17 9 11 13 15 21 7" />
+            <polyline points="15 7 21 7 21 13" />
+          </svg>
+          <span>市场</span>
+        </button>
+        <button class="tab" data-page="industry" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span>行业</span>
+        </button>
+        <button class="tab" data-page="fundflow" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 8h13" />
+            <polyline points="13 4 17 8 13 12" />
+            <path d="M20 16H7" />
+            <polyline points="11 12 7 16 11 20" />
+          </svg>
+          <span>资金</span>
+        </button>
+      </nav>
+
+      <div class="topbar-actions">
+        <span class="data-status" id="data-status" title="数据由 GitHub Actions 定时抓取">
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-text" id="update-time">加载中…</span>
+          <span class="status-hint" id="status-hint">每 15 分钟自动更新</span>
+        </span>
+        <button class="refresh-btn" id="refresh-btn" title="重新加载最新数据" aria-label="刷新数据">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 11a8 8 0 1 0-2.3 6.3" />
+            <polyline points="20 4 20 11 13 11" />
+          </svg>
+          <span class="refresh-label">刷新</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="page active" id="page-market" role="tabpanel" aria-label="市场概览">
+        <div class="page-head">
+          <div>
+            <h1>市场概览</h1>
+            <p>国内指数、全球市场、大宗商品与美国宏观</p>
+          </div>
+          <span class="page-badge" id="market-count"></span>
+        </div>
+
+        <section class="group">
+          <h2 class="section-title">国内指数</h2>
+          <div id="grid-cn" class="grid"></div>
+        </section>
+        <section class="group">
+          <h2 class="section-title">全球指数</h2>
+          <div id="grid-global" class="grid"></div>
+        </section>
+        <section class="group">
+          <h2 class="section-title">大宗商品</h2>
+          <div id="grid-commodity" class="grid"></div>
+        </section>
+        <section class="group">
+          <h2 class="section-title">美国宏观经济</h2>
+          <div id="grid-usmacro" class="grid"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-industry" role="tabpanel" aria-label="行业概览" hidden>
+        <div class="page-head">
+          <div>
+            <h1>行业概览</h1>
+            <p>中证、国证与美国行业指数</p>
+          </div>
+          <span class="page-badge" id="industry-count"></span>
+        </div>
+
+        <section class="group">
+          <h2 class="section-title">中证行业</h2>
+          <div id="grid-cn-index" class="grid"></div>
+        </section>
+        <section class="group">
+          <h2 class="section-title">国证行业</h2>
+          <div id="grid-cn-cni" class="grid"></div>
+        </section>
+        <section class="group">
+          <h2 class="section-title">美国行业</h2>
+          <div id="grid-us-industry" class="grid"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-fundflow" role="tabpanel" aria-label="资金流向" hidden>
+        <div class="page-head">
+          <div>
+            <h1>资金流向</h1>
+            <p>行业板块主力净流入 / 净流出 TOP10</p>
+          </div>
+          <button class="text-link" id="fundflow-title" title="在东方财富打开板块资金流向页核对数据">
+            核对数据
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 17 17 7" />
+              <polyline points="9 7 17 7 17 15" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="ff-toolbar">
+          <div class="ff-range" role="radiogroup" aria-label="排行周期">
+            <label class="ff-range-item"><input type="radio" name="ff-range" value="today" checked /><span>今日排行</span></label>
+            <label class="ff-range-item"><input type="radio" name="ff-range" value="5d" /><span>5日排行</span></label>
+            <label class="ff-range-item"><input type="radio" name="ff-range" value="10d" /><span>10日排行</span></label>
+          </div>
+          <span class="ff-stamp" id="ff-stamp"></span>
+        </div>
+
+        <div class="ff-grid">
+          <section class="ff-card">
+            <div class="ff-section-head">
+              <h2>主力净流入 TOP10</h2>
+              <span class="ff-total up" id="ff-inflow-total">--</span>
+            </div>
+            <div id="ff-inflow" class="ff-chart"><div class="ff-empty">加载中…</div></div>
+          </section>
+          <section class="ff-card">
+            <div class="ff-section-head">
+              <h2>主力净流出 TOP10</h2>
+              <span class="ff-total down" id="ff-outflow-total">--</span>
+            </div>
+            <div id="ff-outflow" class="ff-chart"><div class="ff-empty">加载中…</div></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" role="tablist" aria-label="页面切换">
+      <button class="bottom-tab active" data-page="market" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="3 17 9 11 13 15 21 7" />
+          <polyline points="15 7 21 7 21 13" />
+        </svg>
+        <span>市场</span>
+      </button>
+      <button class="bottom-tab" data-page="industry" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+        <span>行业</span>
+      </button>
+      <button class="bottom-tab" data-page="fundflow" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 8h13" />
+          <polyline points="13 4 17 8 13 12" />
+          <path d="M20 16H7" />
+          <polyline points="11 12 7 16 11 20" />
+        </svg>
+        <span>资金</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
