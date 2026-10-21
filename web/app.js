@@ -734,3 +734,10 @@ window.addEventListener(
   },
   { passive: true }
 );
+
+// 注册 Service Worker：满足 Chrome「安装为应用」的条件，并提供离线兜底
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
