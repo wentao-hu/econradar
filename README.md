@@ -36,6 +36,21 @@ cd web && python3 -m http.server 8899
 2. 运行 `scripts/collect.js`；
 3. 把 `web/` 目录以单个提交 force-push 到 `gh-pages`，由 Pages 发布。
 
+### 跨设备排序同步
+
+卡片排序除保存在本机 `localStorage` 外，还会同步到 Cloudflare Pages Functions + KV：
+
+- API：`https://econradar-sync.pages.dev/api/order`（固定共享 key）
+- 源码：`sync/`
+- 部署：
+
+```bash
+cd sync
+npx wrangler pages deploy public --project-name econradar-sync --branch main
+```
+
+拖拽结束后约 0.8 秒上传；页面每 30 秒拉取一次远端顺序，远端较新时自动覆盖本机顺序。
+
 ## Electron 版（保留）
 
 ```bash

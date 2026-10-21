@@ -16,3 +16,6 @@ npm-debug.log*
 
 # 网页版运行时数据（由 GitHub Actions 定时生成，不入库）
 web/data/latest.json
+
+# Cloudflare wrangler 本地缓存
+.wrangler/

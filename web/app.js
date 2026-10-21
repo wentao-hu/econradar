@@ -35,6 +35,11 @@ const ORDER_PREFIX = 'econradar-web-card-order:';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 45 * 60 * 1000;
 
+// 跨设备排序同步：Cloudflare Pages Functions + KV，固定共享 key
+const SYNC_URL = 'https://econradar-sync.pages.dev/api/order';
+const SYNC_TIME_KEY = 'econradar-web-order-updated-at';
+const SYNC_PULL_MS = 30 * 1000;
+
 let state = { data: null, loading: false, fromCache: false };
 let toastTimer = null;
 
@@ -187,6 +192,7 @@ function saveOrder(grid) {
       (c) => c.dataset.code
     );
     localStorage.setItem(orderKey(grid), JSON.stringify(codes));
+    queueSync();
   } catch (_) { /* 忽略持久化失败 */ }
 }
 
@@ -202,6 +208,71 @@ function applySavedOrder(grid) {
     const card = cardMap.get(code);
     if (card && card.parentElement === grid) grid.appendChild(card);
   }
+}
+
+/* ---------- 跨设备排序同步 ---------- */
+
+let syncTimer = null;
+
+/** 收集当前所有板块的卡片顺序（以 DOM 为准，首次同步时也能拿到完整快照） */
+function collectOrders() {
+  const orders = {};
+  for (const grid of Object.values(grids)) {
+    const codes = Array.from(grid.querySelectorAll('.card:not(.skeleton)')).map(
+      (c) => c.dataset.code
+    );
+    if (codes.length) orders[grid.id] = codes;
+  }
+  return orders;
+}
+
+/** 拖拽结束后防抖上传，避免一次拖动连续触发多个请求 */
+function queueSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushOrders, 800);
+}
+
+async function pushOrders() {
+  const orders = collectOrders();
+  if (!Object.keys(orders).length) return;
+  const updatedAt = Date.now();
+  try {
+    const res = await fetch(SYNC_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updatedAt, orders }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    localStorage.setItem(SYNC_TIME_KEY, String(updatedAt));
+  } catch (err) {
+    // 离线或服务不可用时只保留本地顺序，下次拖拽会重试
+    console.warn('[sync] 排序上传失败', err);
+  }
+}
+
+/** 拉取远端顺序：远端更新则覆盖本地；远端为空则把本机顺序初始化上去 */
+async function pullOrders() {
+  try {
+    const res = await fetch(SYNC_URL, { cache: 'no-store' });
+    if (!res.ok) return;
+    const remote = await res.json();
+    const localAt = Number(localStorage.getItem(SYNC_TIME_KEY)) || 0;
+
+    if (!remote || !remote.orders || typeof remote.updatedAt !== 'number') {
+      if (Object.keys(collectOrders()).length) queueSync();
+      return;
+    }
+    if (remote.updatedAt <= localAt) return;
+
+    for (const [gridId, codes] of Object.entries(remote.orders)) {
+      if (!Array.isArray(codes)) continue;
+      localStorage.setItem(`${ORDER_PREFIX}${gridId}`, JSON.stringify(codes));
+    }
+    localStorage.setItem(SYNC_TIME_KEY, String(remote.updatedAt));
+    for (const grid of Object.values(grids)) applySavedOrder(grid);
+    refitAllTitles();
+    refitAllPills();
+  } catch (_) { /* 离线时保持本地顺序 */ }
 }
 
 /**
@@ -632,7 +703,10 @@ function applyPayload(payload, { fromCache = false } = {}) {
   renderFundFlow();
   updateStatus({ fromCache });
   updateCounts();
-  if (!fromCache) saveCache(payload);
+  if (!fromCache) {
+    saveCache(payload);
+    pullOrders();
+  }
 }
 
 async function fetchLatest() {
@@ -695,6 +769,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 for (const grid of Object.values(grids)) setupGridDnd(grid);
+
+// 跨设备排序同步：启动拉一次，之后每 30 秒检查一次远端
+pullOrders();
+setInterval(pullOrders, SYNC_PULL_MS);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) pullOrders();
+});
 
 // 注册 Service Worker：满足 Chrome「安装为应用」的条件，并提供离线兜底
 if ('serviceWorker' in navigator) {

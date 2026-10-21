@@ -1,0 +1,8 @@
+name = "econradar-sync"
+compatibility_date = "2026-10-21"
+pages_build_output_dir = "public"
+
+# 排序快照存储；由 `wrangler kv namespace create ORDER_KV` 创建
+[[kv_namespaces]]
+binding = "ORDER_KV"
+id = "eb2060e9a4b646929258e0d121490a57"
