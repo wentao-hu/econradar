@@ -35,9 +35,6 @@ const ORDER_PREFIX = 'econradar-web-card-order:';
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const STALE_AFTER_MS = 45 * 60 * 1000;
 
-// 移动端（触摸设备）不启用拖拽排序，避免长按误触；桌面端保留原有能力
-const canDrag = window.matchMedia('(pointer: fine)').matches;
-
 let state = { data: null, loading: false, fromCache: false };
 let toastTimer = null;
 
@@ -176,21 +173,9 @@ window.addEventListener('resize', () => {
   });
 });
 
-/* ---------- 拖拽排序（仅桌面端） ---------- */
+/* ---------- 拖拽排序（桌面鼠标 + 移动端长按） ---------- */
 
-let dragCtx = null; // { card, grid }
-
-function clearDropHints() {
-  document
-    .querySelectorAll('.card.drop-before, .card.drop-after')
-    .forEach((c) => c.classList.remove('drop-before', 'drop-after'));
-}
-
-function insertBeforeTarget(e, rect) {
-  const withinRow = e.clientY >= rect.top && e.clientY <= rect.bottom;
-  if (withinRow) return e.clientX < rect.left + rect.width / 2;
-  return e.clientY < rect.top + rect.height / 2;
-}
+let isDragging = false;
 
 function orderKey(grid) {
   return `${ORDER_PREFIX}${grid.id}`;
@@ -219,46 +204,49 @@ function applySavedOrder(grid) {
   }
 }
 
-function setupCardDnd(card) {
-  card.draggable = true;
-  card.addEventListener('dragstart', (e) => {
-    dragCtx = { card, grid: card.parentElement };
-    card.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', card.dataset.code);
-  });
-  card.addEventListener('dragend', () => {
-    card.classList.remove('dragging');
-    clearDropHints();
-    dragCtx = null;
-  });
+/**
+ * 没有用户手动排序过的板块，按数据源顺序排列。
+ * 这样指标调整分组或数据源顺序变化时，卡片会跟着走；用户拖拽过的板块保持原样。
+ */
+function applyDataOrder(items) {
+  for (const [group, grid] of Object.entries(grids)) {
+    if (localStorage.getItem(orderKey(grid))) continue;
+    for (const item of items) {
+      if (item.group !== group) continue;
+      const card = cardMap.get(item.code);
+      if (card && card.parentElement === grid) grid.appendChild(card);
+    }
+  }
 }
 
+/**
+ * 每个网格独立初始化 Sortable：只允许在同一板块内排序。
+ * 鼠标直接拖拽；触摸设备长按 260ms 再拖，避免和页面滚动冲突。
+ */
 function setupGridDnd(grid) {
-  grid.addEventListener('dragover', (e) => {
-    if (!dragCtx || dragCtx.grid !== grid) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    clearDropHints();
-    const target = e.target.closest('.card');
-    if (target && target !== dragCtx.card && target.parentElement === grid) {
-      const before = insertBeforeTarget(e, target.getBoundingClientRect());
-      target.classList.add(before ? 'drop-before' : 'drop-after');
-    }
-  });
-  grid.addEventListener('drop', (e) => {
-    if (!dragCtx || dragCtx.grid !== grid) return;
-    e.preventDefault();
-    const target = e.target.closest('.card');
-    if (target && target !== dragCtx.card && target.parentElement === grid) {
-      const before = insertBeforeTarget(e, target.getBoundingClientRect());
-      grid.insertBefore(dragCtx.card, before ? target : target.nextSibling);
-    } else {
-      grid.appendChild(dragCtx.card);
-    }
-    clearDropHints();
-    reorderUsMacroGrid();
-    saveOrder(grid);
+  if (!window.Sortable) return;
+  window.Sortable.create(grid, {
+    animation: 160,
+    draggable: '.card:not(.skeleton)',
+    delay: 260,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 4,
+    forceFallback: true,
+    fallbackTolerance: 3,
+    fallbackOnBody: true,
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    dragClass: 'sortable-drag',
+    scroll: true,
+    bubbleScroll: true,
+    onStart: () => {
+      isDragging = true;
+    },
+    onEnd: () => {
+      isDragging = false;
+      reorderUsMacroGrid();
+      saveOrder(grid);
+    },
   });
 }
 
@@ -311,7 +299,6 @@ function createCard(item) {
   }
   card.appendChild(time);
 
-  if (canDrag) setupCardDnd(card);
   return card;
 }
 
@@ -382,13 +369,23 @@ const cardMap = new Map();
 
 function ensureCards(items) {
   for (const item of items) {
-    if (!item || !item.code || cardMap.has(item.code)) continue;
-    if (!grids[item.group]) continue;
+    if (!item || !item.code) continue;
+    const target = grids[item.group];
+    if (!target) continue;
+
+    const existing = cardMap.get(item.code);
+    if (existing) {
+      // 指标调整分组（如中国国债从国内指数移到大宗商品）时，把已有卡片迁到新网格
+      if (existing.parentElement !== target) target.appendChild(existing);
+      continue;
+    }
+
     const card = createCard(item);
     cardMap.set(item.code, card);
-    grids[item.group].appendChild(card);
+    target.appendChild(card);
   }
   for (const grid of Object.values(grids)) applySavedOrder(grid);
+  applyDataOrder(items);
   refitAllTitles();
   refitAllPills();
 }
@@ -658,7 +655,7 @@ async function loadData({ manual = false, auto = false } = {}) {
       auto && state.data && state.data.generatedAt === payload.generatedAt;
 
     // 用户正在拖拽时不要重排卡片，等下一次刷新
-    if (unchanged || (auto && dragCtx)) {
+    if (unchanged || (auto && isDragging)) {
       updateStatus();
       return;
     }
@@ -697,9 +694,7 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.data) loadData({ auto: true });
 });
 
-if (canDrag) {
-  for (const grid of Object.values(grids)) setupGridDnd(grid);
-}
+for (const grid of Object.values(grids)) setupGridDnd(grid);
 
 // 注册 Service Worker：满足 Chrome「安装为应用」的条件，并提供离线兜底
 if ('serviceWorker' in navigator) {

@@ -429,17 +429,23 @@ svg {
   }
 }
 
-.card.dragging {
-  opacity: 0.45;
-  transform: none;
+/* SortableJS：原位占位、拖拽镜像 */
+.card.sortable-ghost {
+  opacity: 0.35;
+  background: var(--accent-soft);
+  border-style: dashed;
+  border-color: var(--accent);
 }
 
-.card.drop-before {
-  box-shadow: inset 3px 0 0 var(--accent);
+.card.sortable-chosen {
+  box-shadow: var(--shadow-md);
 }
 
-.card.drop-after {
-  box-shadow: inset -3px 0 0 var(--accent);
+.card.sortable-drag {
+  opacity: 0.96;
+  box-shadow: 0 18px 40px -16px rgba(15, 23, 42, 0.45);
+  transform: rotate(1.5deg) scale(1.02);
+  cursor: grabbing;
 }
 
 .card-title {
@@ -484,7 +490,7 @@ svg {
   opacity: 1;
 }
 
-.card.dragging .grip {
+.card.sortable-drag .grip {
   cursor: grabbing;
 }
 
@@ -1011,7 +1017,12 @@ svg {
   .grid { gap: 9px; }
 
   .card-title { gap: 4px; }
-  .card-title .grip { display: none; }
+  /* 移动端也支持长按拖拽，保留把手作为可拖拽提示 */
+  .card-title .grip {
+    display: block;
+    font-size: 11px;
+    opacity: 0.32;
+  }
   .card-row { gap: 6px; }
   .pill { padding: 2px 7px; border-radius: 6px; }
   .change-amt { font-size: 10.5px; }
