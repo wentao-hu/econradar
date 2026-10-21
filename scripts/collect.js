@@ -48,31 +48,42 @@ function hasUsableData(value) {
   return !!(value && Array.isArray(value.inflow) && Array.isArray(value.outflow));
 }
 
-/** 抓一个数据源；失败或空数据时回退到上一次结果，并记录状态 */
+/** 抓一个数据源；失败或空数据时短暂重试一次，再失败则回退到上一次结果 */
 async function collectSource(name, fetchFn, previous) {
   const startedAt = Date.now();
-  try {
-    const data = await fetchFn();
-    if (hasUsableData(data)) {
-      return { value: data, status: { ok: true, ms: Date.now() - startedAt } };
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const data = await fetchFn();
+      if (hasUsableData(data)) {
+        return { value: data, status: { ok: true, ms: Date.now() - startedAt } };
+      }
+      throw new Error('empty result');
+    } catch (err) {
+      lastError = err;
+      // 接口偶发 502/超时很常见，等待片刻重试一次，避免整组数据缺席
+      if (attempt === 0) {
+        console.error(`[collect] ${name} 首次抓取失败，1 秒后重试：${(err && err.message) || err}`);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
-    throw new Error('empty result');
-  } catch (err) {
-    const prev = previous && previous[name];
-    const message = String((err && err.message) || err);
-    if (hasUsableData(prev)) {
-      console.error(`[collect] ${name} 抓取失败，沿用上次数据：${message}`);
-      return {
-        value: prev,
-        status: { ok: false, stale: true, ms: Date.now() - startedAt, error: message },
-      };
-    }
-    console.error(`[collect] ${name} 抓取失败，且无可用历史数据：${message}`);
+  }
+
+  const prev = previous && previous[name];
+  const message = String((lastError && lastError.message) || lastError);
+  if (hasUsableData(prev)) {
+    console.error(`[collect] ${name} 抓取失败，沿用上次数据：${message}`);
     return {
-      value: Array.isArray(prev) ? prev : null,
-      status: { ok: false, stale: false, ms: Date.now() - startedAt, error: message },
+      value: prev,
+      status: { ok: false, stale: true, ms: Date.now() - startedAt, error: message },
     };
   }
+  console.error(`[collect] ${name} 抓取失败，且无可用历史数据：${message}`);
+  return {
+    value: Array.isArray(prev) ? prev : null,
+    status: { ok: false, stale: false, ms: Date.now() - startedAt, error: message },
+  };
 }
 
 async function collectFundFlow(previous) {
