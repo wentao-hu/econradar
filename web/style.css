@@ -44,42 +44,6 @@
   --content-pad: 22px 32px 56px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-
-    --bg: #0b1220;
-    --topbar-bg: rgba(11, 18, 32, 0.76);
-    --nav-bg: rgba(17, 26, 44, 0.92);
-    --card: #111a2c;
-    --card-hover: #16213a;
-    --border: rgba(148, 163, 184, 0.13);
-    --border-strong: rgba(148, 163, 184, 0.22);
-    --text: #e2e8f0;
-    --text-secondary: #94a3b8;
-    --text-dim: #64748b;
-    --accent: #60a5fa;
-    --accent-soft: rgba(96, 165, 250, 0.14);
-    --up: #fb7185;
-    --up-bg: rgba(251, 113, 133, 0.12);
-    --down: #34d399;
-    --down-bg: rgba(52, 211, 153, 0.12);
-    --flat: #64748b;
-    --flat-bg: rgba(100, 116, 139, 0.2);
-    --track: rgba(148, 163, 184, 0.14);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 18px 40px -20px rgba(0, 0, 0, 0.7);
-    --glow-a: rgba(37, 99, 235, 0.16);
-    --glow-b: rgba(16, 185, 129, 0.08);
-    --toast-bg: rgba(226, 232, 240, 0.94);
-    --toast-text: #0f172a;
-  }
-
-  .brand-mark {
-    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.25);
-  }
-}
-
 * {
   margin: 0;
   padding: 0;
