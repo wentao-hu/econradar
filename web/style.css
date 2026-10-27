@@ -460,6 +460,8 @@ svg {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: inherit;
+  text-decoration: none;
 }
 
 .card-title.title-md { font-size: calc(var(--title-size) - 2px); }
@@ -677,6 +679,7 @@ svg {
   color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
+  text-decoration: none;
   transition: color 0.16s, border-color 0.16s;
 }
 

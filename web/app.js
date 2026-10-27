@@ -474,9 +474,8 @@ function createCard(item) {
 
   const title = document.createElement('div');
   title.className = 'card-title';
-  title.title = `在新窗口打开 ${item.name} 详情页`;
   title.innerHTML =
-    '<span class="name"></span>' +
+    '<a class="name" target="_blank" rel="noopener noreferrer" draggable="false"></a>' +
     '<span class="pin" role="button" tabindex="0" title="置顶" aria-pressed="false">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -486,21 +485,15 @@ function createCard(item) {
     '<span class="grip" title="按住拖动卡片">⠿</span>';
   applyTitle(title, item.name);
   const pinBtn = title.querySelector('.pin');
-  pinBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    togglePin(card);
-  });
+  pinBtn.addEventListener('click', () => togglePin(card));
   pinBtn.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
-    e.stopPropagation();
     togglePin(card);
   });
-  title.querySelector('.grip').addEventListener('click', (e) => e.stopPropagation());
-  card.dataset.url = item.url || '';
-  title.addEventListener('click', () => {
-    if (card.dataset.url) window.open(card.dataset.url, '_blank', 'noopener,noreferrer');
-  });
+  const link = title.querySelector('.name');
+  if (item.url) link.href = item.url;
+  link.title = `在新窗口打开 ${item.name} 详情页`;
 
   const row = document.createElement('div');
   row.className = 'card-row';
@@ -557,7 +550,7 @@ function updateCard(card, item) {
   card.classList.remove('no-data');
 
   applyTitle(titleEl, item.name);
-  if (item.url) card.dataset.url = item.url;
+  if (item.url) titleEl.querySelector('.name').href = item.url;
 
   // 美国宏观指标：主显示最新值（带单位），pill 为较上期变化，配角显示前值
   if (item.kind === 'macro') {
@@ -780,10 +773,6 @@ document.querySelectorAll('input[name="ff-range"]').forEach((radio) => {
     ffRange = radio.value;
     renderFundFlow();
   });
-});
-
-document.getElementById('fundflow-title').addEventListener('click', () => {
-  window.open('https://data.eastmoney.com/bkzj/hy.html', '_blank', 'noopener,noreferrer');
 });
 
 /* ---------- 状态与提示 ---------- */
