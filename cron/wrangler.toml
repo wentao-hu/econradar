@@ -1,0 +1,8 @@
+name = "econradar-cron"
+main = "src/index.js"
+compatibility_date = "2026-11-12"
+
+# 每 10 分钟触发一次 GitHub Actions 抓取（GitHub 自带的 schedule 对低频仓库
+# 实测 4-8 小时才触发一次，不可依赖）
+[triggers]
+crons = ["*/10 * * * *"]
