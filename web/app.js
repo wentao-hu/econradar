@@ -10,6 +10,7 @@ const grids = {
   cn: document.getElementById('grid-cn'),
   global: document.getElementById('grid-global'),
   usmacro: document.getElementById('grid-usmacro'),
+  bond: document.getElementById('grid-bond'),
   commodity: document.getElementById('grid-commodity'),
   cnIndex: document.getElementById('grid-cn-index'),
   cnCni: document.getElementById('grid-cn-cni'),
@@ -34,7 +35,7 @@ const pinnedSections = {
 
 // 普通板块 -> 所属页面，决定置顶卡片放在哪一页
 const PAGE_GRIDS = {
-  market: ['cn', 'global', 'commodity', 'usmacro'],
+  market: ['cn', 'global', 'bond', 'commodity', 'usmacro'],
   industry: ['cnIndex', 'cnCni', 'usIndustry'],
 };
 const GRID_PAGE = {};
@@ -160,10 +161,14 @@ function applyTitle(titleEl, name) {
 
 function fitTitle(titleEl) {
   titleEl.classList.remove('title-md', 'title-sm');
-  if (!titleEl.isConnected || titleEl.clientWidth === 0) return;
-  if (titleEl.scrollWidth <= titleEl.clientWidth + 1) return;
+  const nameEl = titleEl.querySelector('.name');
+  if (!titleEl.isConnected || !nameEl || nameEl.clientWidth === 0) return;
+  // 溢出只体现在 overflow:hidden 的 .name 上，测 titleEl.scrollWidth 恒不溢出；
+  // 不留 1px 容差：亚像素差也足以显示省略号
+
+  if (nameEl.scrollWidth <= nameEl.clientWidth) return;
   titleEl.classList.add('title-md');
-  if (titleEl.scrollWidth <= titleEl.clientWidth + 1) return;
+  if (nameEl.scrollWidth <= nameEl.clientWidth) return;
   titleEl.classList.replace('title-md', 'title-sm');
 }
 
@@ -601,7 +606,7 @@ function ensureCards(items) {
     const existing = cardMap.get(item.code);
     if (existing) {
       existing._homeGrid = target;
-      // 指标调整分组（如中国国债从国内指数移到大宗商品）时，把已有卡片迁到新网格；
+      // 指标调整分组（如国债独立为债券市场板块）时，把已有卡片迁到新网格；
       // 已置顶的卡片留在置顶区，由 applyPins 按新归属重新放置
       if (!pinnedCodes.includes(item.code) && existing.parentElement !== target) {
         target.appendChild(existing);

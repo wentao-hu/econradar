@@ -9,6 +9,7 @@ const grids = {
   cn: document.getElementById('grid-cn'),
   global: document.getElementById('grid-global'),
   usmacro: document.getElementById('grid-usmacro'),
+  bond: document.getElementById('grid-bond'),
   commodity: document.getElementById('grid-commodity'),
   cnIndex: document.getElementById('grid-cn-index'),
   cnCni: document.getElementById('grid-cn-cni'),
